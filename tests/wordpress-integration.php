@@ -203,6 +203,47 @@ try {
 		throw new RuntimeException( 'A video without a thumbnail was accepted as an image.' );
 	}
 
+	$carousel_video_without_thumbnail = Feed_Store::normalize_item(
+		array(
+			'id'         => 'carousel-video-without-thumbnail',
+			'media_type' => 'CAROUSEL_ALBUM',
+			'permalink'  => 'https://www.instagram.com/p/carousel-video-no-thumbnail/',
+			'children'   => array(
+				'data' => array(
+					array(
+						'id'         => 'carousel-video-child',
+						'media_type' => 'VIDEO',
+						'media_url'  => 'https://example.test/carousel-video.mp4',
+					),
+				),
+			),
+		)
+	);
+	if ( null !== $carousel_video_without_thumbnail ) {
+		throw new RuntimeException( 'A carousel video child without a thumbnail was accepted as an image.' );
+	}
+
+	$carousel_video_with_thumbnail = Feed_Store::normalize_item(
+		array(
+			'id'         => 'carousel-video-with-thumbnail',
+			'media_type' => 'CAROUSEL_ALBUM',
+			'permalink'  => 'https://www.instagram.com/p/carousel-video-thumbnail/',
+			'children'   => array(
+				'data' => array(
+					array(
+						'id'            => 'carousel-video-child-with-thumbnail',
+						'media_type'    => 'VIDEO',
+						'media_url'     => 'https://example.test/carousel-video.mp4',
+						'thumbnail_url' => 'https://example.test/carousel-video.jpg',
+					),
+				),
+			),
+		)
+	);
+	if ( 'https://example.test/carousel-video.jpg' !== ( $carousel_video_with_thumbnail['image_url'] ?? '' ) ) {
+		throw new RuntimeException( 'A carousel video child thumbnail was not normalized.' );
+	}
+
 	$options                         = get_option( OPTION_KEY, array() );
 	$options['instagram_account_id'] = '17841400000000999';
 	update_option( OPTION_KEY, $options, false );

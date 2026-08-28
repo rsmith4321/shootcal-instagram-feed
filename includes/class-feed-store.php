@@ -170,9 +170,14 @@ class Feed_Store {
 		if ( '' === $image_url && 'CAROUSEL_ALBUM' === $media_type && ! empty( $raw['children']['data'] ) && is_array( $raw['children']['data'] ) ) {
 			$first_child = reset( $raw['children']['data'] );
 			if ( is_array( $first_child ) ) {
+				$child_media_type = isset( $first_child['media_type'] ) && is_string( $first_child['media_type'] )
+					? strtoupper( sanitize_key( $first_child['media_type'] ) )
+					: 'IMAGE';
+				$child_is_video   = in_array( $child_media_type, array( 'VIDEO', 'REELS' ), true );
+
 				if ( ! empty( $first_child['thumbnail_url'] ) && is_string( $first_child['thumbnail_url'] ) ) {
 					$image_url = $first_child['thumbnail_url'];
-				} elseif ( ! empty( $first_child['media_url'] ) && is_string( $first_child['media_url'] ) ) {
+				} elseif ( ! $child_is_video && ! empty( $first_child['media_url'] ) && is_string( $first_child['media_url'] ) ) {
 					$image_url = $first_child['media_url'];
 				}
 			}
