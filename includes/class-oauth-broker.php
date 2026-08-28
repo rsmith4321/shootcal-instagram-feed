@@ -166,16 +166,17 @@ class OAuth_Broker {
 			return false;
 		}
 		parse_str( (string) ( $parts['query'] ?? '' ), $query );
-		if ( 5 !== count( explode( '&', (string) ( $parts['query'] ?? '' ) ) ) ) {
+		if ( 6 !== count( explode( '&', (string) ( $parts['query'] ?? '' ) ) ) ) {
 			return false;
 		}
 		$keys = array_keys( $query );
 		sort( $keys );
-		return array( 'client_id', 'redirect_uri', 'response_type', 'scope', 'state' ) === $keys
+		return array( 'client_id', 'config_id', 'override_default_response_type', 'redirect_uri', 'response_type', 'state' ) === $keys
 			&& is_string( $query['client_id'] ?? null ) && 1 === preg_match( '/^[0-9]{5,64}$/', $query['client_id'] )
+			&& is_string( $query['config_id'] ?? null ) && 1 === preg_match( '/^[0-9]{5,64}$/', $query['config_id'] )
 			&& 'https://api.shootcal.com/v1/public/wordpress/instagram/callback' === ( $query['redirect_uri'] ?? null )
 			&& 'code' === ( $query['response_type'] ?? null )
-			&& 'instagram_basic,pages_show_list' === ( $query['scope'] ?? null )
+			&& 'true' === ( $query['override_default_response_type'] ?? null )
 			&& is_string( $query['state'] ?? null ) && 1 === preg_match( '/^[A-Za-z0-9_-]{43}$/', $query['state'] );
 	}
 

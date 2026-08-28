@@ -68,7 +68,7 @@ $verifier  = $token( 'V' );
 $broker    = new OAuth_Broker();
 
 $broker_response = array(
-	'authorizationUrl' => 'https://www.facebook.com/v26.0/dialog/oauth?client_id=1234567890123456&redirect_uri=https%3A%2F%2Fapi.shootcal.com%2Fv1%2Fpublic%2Fwordpress%2Finstagram%2Fcallback&response_type=code&scope=instagram_basic%2Cpages_show_list&state=' . $state,
+	'authorizationUrl' => 'https://www.facebook.com/v26.0/dialog/oauth?client_id=1234567890123456&redirect_uri=https%3A%2F%2Fapi.shootcal.com%2Fv1%2Fpublic%2Fwordpress%2Finstagram%2Fcallback&response_type=code&config_id=876543210987654&override_default_response_type=true&state=' . $state,
 );
 $started = $broker->start(
 	'https://example.com/wp-admin/admin-post.php?action=shootcal_instagram_oauth_callback',
