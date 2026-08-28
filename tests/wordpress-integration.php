@@ -19,6 +19,7 @@ use const ShootCalInstagramFeed\CACHE_KEY;
 use const ShootCalInstagramFeed\LOCK_KEY;
 use const ShootCalInstagramFeed\OPTION_KEY;
 use const ShootCalInstagramFeed\STATUS_KEY;
+use const ShootCalInstagramFeed\VERSION;
 
 $original_options = get_option( OPTION_KEY, false );
 $original_cache   = get_option( CACHE_KEY, false );
@@ -211,6 +212,9 @@ try {
 	);
 	if ( ! str_contains( $dynamic, 'shootcal-instagram-feed-loader' ) || ! str_contains( $dynamic, '/shootcal-instagram-feed/v1/feed' ) ) {
 		throw new RuntimeException( 'The dynamic shortcode did not render its cache-only loader.' );
+	}
+	if ( ! str_contains( $dynamic, 'data-stylesheet=' ) || ! str_contains( $dynamic, '/shootcal-instagram-feed/assets/feed.css?ver=' . VERSION ) ) {
+		throw new RuntimeException( 'The dynamic shortcode did not expose its versioned runtime stylesheet.' );
 	}
 	if ( ! str_contains( $dynamic, 'data-class="fixture-class"' ) || ! str_contains( $dynamic, 'shootcal-instagram-feed fixture-class' ) ) {
 		throw new RuntimeException( 'The dynamic shortcode did not preserve its custom class.' );

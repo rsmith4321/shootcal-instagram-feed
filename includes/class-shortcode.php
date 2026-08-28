@@ -75,8 +75,9 @@ class Shortcode {
 			}
 
 			return sprintf(
-				'<div class="shootcal-instagram-feed-loader" data-endpoint="%1$s" data-hashtag="%2$s" data-limit="%3$d" data-columns="%4$d" data-mobile-limit="%5$d" data-follow="%6$s" data-class="%7$s">%8$s</div>',
+				'<div class="shootcal-instagram-feed-loader" data-endpoint="%1$s" data-stylesheet="%2$s" data-hashtag="%3$s" data-limit="%4$d" data-columns="%5$d" data-mobile-limit="%6$d" data-follow="%7$s" data-class="%8$s">%9$s</div>',
 				esc_url( rest_url( Rest_Controller::ROUTE ) ),
+				esc_url( Assets::stylesheet_url() ),
 				esc_attr( $hashtag ),
 				$limit,
 				$columns,

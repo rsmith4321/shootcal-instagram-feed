@@ -64,6 +64,13 @@ class Assets {
 		wp_enqueue_style( self::STYLE_HANDLE );
 	}
 
+	/**
+	 * Return the versioned public stylesheet URL for post-load rendering.
+	 */
+	public static function stylesheet_url(): string {
+		return (string) add_query_arg( 'ver', VERSION, PLUGIN_URL . 'assets/feed.css' );
+	}
+
 	public static function enqueue_dynamic(): void {
 		self::enqueue();
 		if ( ! wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
