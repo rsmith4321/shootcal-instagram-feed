@@ -471,7 +471,7 @@ class Settings {
 	}
 
 	private static function valid_choices( mixed $value ): bool {
-		if ( ! is_array( $value ) || ! array_is_list( $value ) || count( $value ) > 100 ) {
+		if ( ! is_array( $value ) || array_values( $value ) !== $value || count( $value ) > 100 ) {
 			return false;
 		}
 		$seen = array();

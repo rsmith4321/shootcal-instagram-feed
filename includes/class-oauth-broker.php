@@ -88,7 +88,7 @@ class OAuth_Broker {
 		if ( self::exact_keys( $response, array( 'choices', 'status' ) )
 			&& 'selecting' === $response['status']
 			&& is_array( $response['choices'] )
-			&& array_is_list( $response['choices'] )
+			&& self::is_list( $response['choices'] )
 			&& count( $response['choices'] ) >= 2
 			&& count( $response['choices'] ) <= 100 ) {
 			$choices = array();
@@ -136,7 +136,7 @@ class OAuth_Broker {
 			return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an oversized response.', 'shootcal-instagram-feed' ) );
 		}
 		$data = json_decode( $raw, true );
-		if ( $status < 200 || $status >= 300 || ! is_array( $data ) || array_is_list( $data ) ) {
+		if ( $status < 200 || $status >= 300 || ! is_array( $data ) || self::is_list( $data ) ) {
 			return self::error( 'shootcal_instagram_broker_failed', __( 'Instagram could not be connected. Try again.', 'shootcal-instagram-feed' ) );
 		}
 
@@ -192,6 +192,15 @@ class OAuth_Broker {
 			&& strtolower( $username ) === $username
 			&& 1 === preg_match( '/^[a-z0-9_](?:[a-z0-9._]{0,28}[a-z0-9_])?$/', $username )
 			&& ! str_contains( $username, '..' );
+	}
+
+	/**
+	 * PHP 8.0-compatible equivalent of array_is_list().
+	 *
+	 * @param array<mixed> $value Candidate list.
+	 */
+	private static function is_list( array $value ): bool {
+		return array_values( $value ) === $value;
 	}
 
 	/** @param array<string,mixed> $value @param array<int,string> $expected */
