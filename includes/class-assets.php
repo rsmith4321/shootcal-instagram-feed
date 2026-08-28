@@ -17,7 +17,8 @@ class Assets {
 	private const SCRIPT_HANDLE = 'shootcal-instagram-feed';
 
 	public function register(): void {
-		add_action( 'wp_enqueue_scripts', array( $this, 'register_style' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'register_style' ), 5 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_for_current_post' ), 20 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'register_style' ) );
 	}
 
@@ -38,6 +39,22 @@ class Assets {
 				'strategy'  => 'defer',
 			)
 		);
+	}
+
+	/**
+	 * Load assets in the document head when the queried post contains the feed.
+	 */
+	public function enqueue_for_current_post(): void {
+		if ( ! is_singular() ) {
+			return;
+		}
+
+		$post = get_queried_object();
+		if ( ! $post instanceof \WP_Post || ! has_shortcode( (string) $post->post_content, Shortcode::TAG ) ) {
+			return;
+		}
+
+		self::enqueue();
 	}
 
 	public static function enqueue(): void {
