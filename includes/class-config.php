@@ -82,7 +82,7 @@ class Config {
 		$token = preg_replace( '/\s+/', '', trim( $token ) );
 		$token = is_string( $token ) ? $token : '';
 
-		if ( '' === $token || strlen( $token ) > 4096 ) {
+		if ( '' === $token || strlen( $token ) > 4096 || 1 === preg_match( '/[\x00-\x20\x7F]/', $token ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_bad_token',
 				__( 'The access token was empty or invalid.', 'shootcal-instagram-feed' )
@@ -90,6 +90,9 @@ class Config {
 		}
 
 		$encrypted = Token_Cipher::encrypt( $token );
+		if ( function_exists( 'sodium_memzero' ) ) {
+			sodium_memzero( $token );
+		}
 		if ( is_wp_error( $encrypted ) ) {
 			return $encrypted;
 		}
@@ -97,7 +100,53 @@ class Config {
 		$options                     = self::get();
 		$options['access_token']     = $encrypted;
 		$options['token_updated_at'] = time();
-		update_option( OPTION_KEY, $options, false );
+		if ( ! update_option( OPTION_KEY, $options, false ) ) {
+			return new \WP_Error(
+				'shootcal_instagram_store_failed',
+				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Atomically replace the locally encrypted token and its account boundary.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function store_connection( string $token, string $account_id ) {
+		if ( 1 !== preg_match( '/^[0-9]{1,191}$/', $account_id ) ) {
+			return new \WP_Error(
+				'shootcal_instagram_bad_account',
+				__( 'ShootCal returned an invalid Instagram account.', 'shootcal-instagram-feed' )
+			);
+		}
+		$token = preg_replace( '/\s+/', '', trim( $token ) );
+		$token = is_string( $token ) ? $token : '';
+		if ( '' === $token || strlen( $token ) > 4096 || 1 === preg_match( '/[\x00-\x20\x7F]/', $token ) ) {
+			return new \WP_Error(
+				'shootcal_instagram_bad_token',
+				__( 'ShootCal returned an invalid Instagram access token.', 'shootcal-instagram-feed' )
+			);
+		}
+		$encrypted = Token_Cipher::encrypt( $token );
+		if ( function_exists( 'sodium_memzero' ) ) {
+			sodium_memzero( $token );
+		}
+		if ( is_wp_error( $encrypted ) ) {
+			return $encrypted;
+		}
+		$options                         = self::get();
+		$options['access_token']         = $encrypted;
+		$options['instagram_account_id'] = $account_id;
+		$options['token_updated_at']     = time();
+		if ( ! update_option( OPTION_KEY, $options, false ) ) {
+			return new \WP_Error(
+				'shootcal_instagram_store_failed',
+				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
+			);
+		}
 
 		return true;
 	}

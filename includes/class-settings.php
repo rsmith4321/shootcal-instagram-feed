@@ -15,8 +15,13 @@ class Settings {
 
 	private const PAGE_SLUG = 'shootcal-instagram-feed';
 	private const RESULT_NONCE_ACTION = 'shootcal_instagram_result';
+	private const OAUTH_SECONDS = 600;
+	private const TOKEN_PATTERN = '/^[A-Za-z0-9_-]{43}$/';
 
-	public function __construct( private Feed_Store $store ) {
+	private OAuth_Broker $broker;
+
+	public function __construct( private Feed_Store $store, ?OAuth_Broker $broker = null ) {
+		$this->broker = $broker ?? new OAuth_Broker();
 	}
 
 	public function register(): void {
@@ -24,6 +29,9 @@ class Settings {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_shootcal_instagram_refresh', array( $this, 'handle_refresh' ) );
 		add_action( 'admin_post_shootcal_instagram_disconnect', array( $this, 'handle_disconnect' ) );
+		add_action( 'admin_post_shootcal_instagram_connect', array( $this, 'handle_connect' ) );
+		add_action( 'admin_post_shootcal_instagram_oauth_callback', array( $this, 'handle_oauth_callback' ) );
+		add_action( 'admin_post_shootcal_instagram_oauth_select', array( $this, 'handle_oauth_select' ) );
 	}
 
 	public function add_page(): void {
@@ -118,6 +126,7 @@ class Settings {
 		delete_option( CACHE_KEY );
 		delete_option( STATUS_KEY );
 		delete_option( LOCK_KEY );
+		delete_option( OAUTH_KEY );
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -129,6 +138,118 @@ class Settings {
 			)
 		);
 		exit;
+	}
+
+	public function handle_connect(): void {
+		$this->authorize_action( 'shootcal_instagram_connect' );
+		try {
+			$verifier = self::random_token();
+			$state    = self::random_token();
+		} catch ( \Throwable ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		$challenge = rtrim( strtr( base64_encode( hash( 'sha256', $verifier, true ) ), '+/', '-_' ), '=' );
+		$callback  = admin_url( 'admin-post.php?action=shootcal_instagram_oauth_callback' );
+		$result    = $this->broker->start( $callback, $state, $challenge );
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		$encrypted = Token_Cipher::encrypt( $verifier );
+		self::wipe( $verifier );
+		if ( is_wp_error( $encrypted ) ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		$saved = update_option(
+			OAUTH_KEY,
+			array(
+				'state_hash'          => hash( 'sha256', $state ),
+				'verifier_ciphertext' => $encrypted,
+				'user_id'             => get_current_user_id(),
+				'expires_at'          => time() + self::OAUTH_SECONDS,
+				'handoff_ciphertext'  => '',
+				'choices'             => array(),
+			),
+			false
+		);
+		if ( ! $saved ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+
+		// OAuth_Broker has already constrained this to Meta's exact HTTPS dialog.
+		wp_redirect( $result['authorizationUrl'], 302, 'ShootCal Instagram Feed' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+		exit;
+	}
+
+	public function handle_oauth_callback(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sign in to WordPress as an administrator to finish connecting Instagram.', 'shootcal-instagram-feed' ), '', array( 'response' => 403 ) );
+		}
+		$state   = isset( $_GET['state'] ) ? sanitize_text_field( wp_unslash( $_GET['state'] ) ) : '';
+		$context = $this->oauth_context( $state );
+		if ( null === $context ) {
+			$this->redirect_result( 'oauth_expired' );
+		}
+		if ( isset( $_GET['error'] ) ) {
+			delete_option( OAUTH_KEY );
+			$this->redirect_result( 'oauth_denied' );
+		}
+		$handoff = isset( $_GET['handoff'] ) ? sanitize_text_field( wp_unslash( $_GET['handoff'] ) ) : '';
+		if ( 1 !== preg_match( self::TOKEN_PATTERN, $handoff ) ) {
+			delete_option( OAUTH_KEY );
+			$this->redirect_result( 'oauth_error' );
+		}
+		$verifier = Token_Cipher::decrypt( (string) $context['verifier_ciphertext'] );
+		if ( is_wp_error( $verifier ) ) {
+			delete_option( OAUTH_KEY );
+			$this->redirect_result( 'oauth_error' );
+		}
+		$result = $this->broker->redeem( $handoff, $verifier );
+		self::wipe( $verifier );
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		if ( 'selecting' === $result['status'] ) {
+			$handoff_ciphertext = Token_Cipher::encrypt( $handoff );
+			self::wipe( $handoff );
+			if ( is_wp_error( $handoff_ciphertext ) ) {
+				delete_option( OAUTH_KEY );
+				$this->redirect_result( 'oauth_error' );
+			}
+			$context['handoff_ciphertext'] = $handoff_ciphertext;
+			$context['choices']            = $result['choices'];
+			if ( ! update_option( OAUTH_KEY, $context, false ) ) {
+				delete_option( OAUTH_KEY );
+				$this->redirect_result( 'oauth_error' );
+			}
+			$this->redirect_result( 'oauth_select', array( 'oauth_state' => $state ) );
+		}
+		self::wipe( $handoff );
+		$this->finish_oauth_connection( $result );
+	}
+
+	public function handle_oauth_select(): void {
+		$this->authorize_action( 'shootcal_instagram_oauth_select' );
+		$state     = isset( $_POST['oauth_state'] ) ? sanitize_text_field( wp_unslash( $_POST['oauth_state'] ) ) : '';
+		$candidate = isset( $_POST['candidate'] ) ? sanitize_text_field( wp_unslash( $_POST['candidate'] ) ) : '';
+		$context   = $this->oauth_context( $state );
+		if ( null === $context || 1 !== preg_match( '/^[A-Za-z0-9_-]{22}$/', $candidate )
+			|| ! in_array( $candidate, array_column( $context['choices'], 'id' ), true ) ) {
+			delete_option( OAUTH_KEY );
+			$this->redirect_result( 'oauth_expired' );
+		}
+		$verifier = Token_Cipher::decrypt( (string) $context['verifier_ciphertext'] );
+		$handoff = Token_Cipher::decrypt( (string) $context['handoff_ciphertext'] );
+		if ( is_wp_error( $verifier ) || is_wp_error( $handoff ) ) {
+			delete_option( OAUTH_KEY );
+			$this->redirect_result( 'oauth_error' );
+		}
+		$result = $this->broker->redeem( $handoff, $verifier, $candidate );
+		self::wipe( $handoff );
+		self::wipe( $verifier );
+		if ( is_wp_error( $result ) || 'connected' !== ( $result['status'] ?? '' ) ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		$this->finish_oauth_connection( $result );
 	}
 
 	public function render_page(): void {
@@ -154,7 +275,19 @@ class Settings {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'The Instagram refresh failed. The last successful cache was preserved; see Connection status below.', 'shootcal-instagram-feed' ) . '</p></div>';
 		} elseif ( 'disconnected' === $result ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instagram was disconnected and its cached feed was removed.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_connected' === $result ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instagram connected successfully. The first cached feed is ready.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_connected_refresh_error' === $result ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Instagram connected, but the first feed refresh failed. Use Refresh feed now to retry.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_denied' === $result ) {
+			echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__( 'Instagram connection was canceled. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_expired' === $result ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'The Instagram connection request expired. Start again.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_error' === $result ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Instagram could not be connected. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
 		}
+		$selection = 'oauth_select' === $result && isset( $_GET['oauth_state'] )
+			? $this->oauth_context( sanitize_text_field( wp_unslash( $_GET['oauth_state'] ) ) ) : null;
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'ShootCal Instagram Feed', 'shootcal-instagram-feed' ); ?></h1>
@@ -172,7 +305,32 @@ class Settings {
 				</tbody>
 			</table>
 
-			<form method="post" action="options.php" style="max-width:55em;">
+			<h2><?php esc_html_e( 'Connect Instagram', 'shootcal-instagram-feed' ); ?></h2>
+			<p style="max-width:55em;"><?php esc_html_e( 'Use your Facebook login to choose a linked professional Instagram account. ShootCal handles the authorization, then this WordPress site stores the resulting token locally in encrypted form.', 'shootcal-instagram-feed' ); ?></p>
+			<?php if ( is_array( $selection ) && ! empty( $selection['choices'] ) ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="max-width:55em;">
+					<input type="hidden" name="action" value="shootcal_instagram_oauth_select" />
+					<input type="hidden" name="oauth_state" value="<?php echo esc_attr( sanitize_text_field( wp_unslash( $_GET['oauth_state'] ) ) ); ?>" />
+					<?php wp_nonce_field( 'shootcal_instagram_oauth_select' ); ?>
+					<fieldset>
+						<legend class="screen-reader-text"><?php esc_html_e( 'Choose an Instagram account', 'shootcal-instagram-feed' ); ?></legend>
+						<?php foreach ( $selection['choices'] as $index => $choice ) : ?>
+							<p><label><input type="radio" name="candidate" value="<?php echo esc_attr( (string) $choice['id'] ); ?>" <?php checked( 0, $index ); ?> required /> <strong><?php echo esc_html( (string) $choice['pageName'] ); ?></strong><?php echo null !== $choice['username'] ? ' — ' . esc_html( '@' . (string) $choice['username'] ) : ''; ?></label></p>
+						<?php endforeach; ?>
+					</fieldset>
+					<?php submit_button( __( 'Use this Instagram account', 'shootcal-instagram-feed' ), 'primary', 'submit', false ); ?>
+				</form>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="shootcal_instagram_connect" />
+					<?php wp_nonce_field( 'shootcal_instagram_connect' ); ?>
+					<?php submit_button( Config::has_token() ? __( 'Reconnect with Facebook', 'shootcal-instagram-feed' ) : __( 'Connect with Facebook', 'shootcal-instagram-feed' ), 'primary', 'submit', false ); ?>
+				</form>
+			<?php endif; ?>
+
+			<details style="max-width:55em;margin-top:1.5em;">
+				<summary><strong><?php esc_html_e( 'Advanced: enter a token manually', 'shootcal-instagram-feed' ); ?></strong></summary>
+			<form method="post" action="options.php">
 				<?php settings_fields( 'shootcal_instagram_feed_group' ); ?>
 				<h2><?php esc_html_e( 'Instagram connection', 'shootcal-instagram-feed' ); ?></h2>
 				<table class="form-table" role="presentation">
@@ -214,6 +372,7 @@ class Settings {
 
 				<?php submit_button( __( 'Save settings', 'shootcal-instagram-feed' ) ); ?>
 			</form>
+			</details>
 
 			<h2><?php esc_html_e( 'Refresh and test', 'shootcal-instagram-feed' ); ?></h2>
 			<p><code>[shootcal_instagram_feed]</code></p>
@@ -248,5 +407,91 @@ class Settings {
 
 	private function settings_url(): string {
 		return admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+	}
+
+	/** @return array<string,mixed>|null */
+	private function oauth_context( string $state ): ?array {
+		if ( 1 !== preg_match( self::TOKEN_PATTERN, $state ) ) {
+			return null;
+		}
+		$value = get_option( OAUTH_KEY, array() );
+		if ( ! is_array( $value ) || (int) ( $value['user_id'] ?? 0 ) !== get_current_user_id()
+			|| (int) ( $value['expires_at'] ?? 0 ) < time()
+			|| ! is_string( $value['state_hash'] ?? null )
+			|| ! hash_equals( $value['state_hash'], hash( 'sha256', $state ) )
+			|| ! is_string( $value['verifier_ciphertext'] ?? null )
+			|| ! is_string( $value['handoff_ciphertext'] ?? null )
+			|| ! self::valid_choices( $value['choices'] ?? null ) ) {
+			return null;
+		}
+
+		return $value;
+	}
+
+	/** @param array<string,mixed> $result */
+	private function finish_oauth_connection( array $result ): void {
+		$token = (string) ( $result['accessToken'] ?? '' );
+		$stored = Config::store_connection(
+			$token,
+			(string) ( $result['account']['id'] ?? '' )
+		);
+		self::wipe( $token );
+		if ( isset( $result['accessToken'] ) && is_string( $result['accessToken'] ) ) {
+			self::wipe( $result['accessToken'] );
+		}
+		if ( is_wp_error( $stored ) ) {
+			$this->redirect_result( 'oauth_error' );
+		}
+		delete_option( OAUTH_KEY );
+		delete_option( CACHE_KEY );
+		delete_option( STATUS_KEY );
+		delete_option( LOCK_KEY );
+		$refreshed = $this->store->refresh();
+		$this->redirect_result( is_wp_error( $refreshed ) ? 'oauth_connected_refresh_error' : 'oauth_connected' );
+	}
+
+	/** @param array<string,string> $extra */
+	private function redirect_result( string $result, array $extra = array() ): void {
+		$url = add_query_arg(
+			array_merge(
+				$extra,
+				array(
+					'shootcal_instagram_result'       => $result,
+					'shootcal_instagram_result_nonce' => wp_create_nonce( self::RESULT_NONCE_ACTION ),
+				)
+			),
+			$this->settings_url()
+		);
+		wp_safe_redirect( $url );
+		exit;
+	}
+
+	private static function random_token(): string {
+		return rtrim( strtr( base64_encode( random_bytes( 32 ) ), '+/', '-_' ), '=' );
+	}
+
+	private static function valid_choices( mixed $value ): bool {
+		if ( ! is_array( $value ) || ! array_is_list( $value ) || count( $value ) > 100 ) {
+			return false;
+		}
+		$seen = array();
+		foreach ( $value as $choice ) {
+			if ( ! is_array( $choice ) || array_keys( $choice ) !== array( 'id', 'pageName', 'username' )
+				|| ! is_string( $choice['id'] ) || 1 !== preg_match( '/^[A-Za-z0-9_-]{22}$/', $choice['id'] )
+				|| isset( $seen[ $choice['id'] ] ) || ! is_string( $choice['pageName'] )
+				|| '' === trim( $choice['pageName'] ) || strlen( $choice['pageName'] ) > 191
+				|| ( null !== $choice['username'] && ! is_string( $choice['username'] ) ) ) {
+				return false;
+			}
+			$seen[ $choice['id'] ] = true;
+		}
+
+		return true;
+	}
+
+	private static function wipe( string &$value ): void {
+		if ( function_exists( 'sodium_memzero' ) ) {
+			sodium_memzero( $value );
+		}
 	}
 }

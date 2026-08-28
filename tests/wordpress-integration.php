@@ -11,12 +11,13 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 }
 
 use ShootCalInstagramFeed\Api_Client;
+use ShootCalInstagramFeed\Config;
 use ShootCalInstagramFeed\Feed_Store;
 use ShootCalInstagramFeed\Rest_Controller;
 use ShootCalInstagramFeed\Shortcode;
-use ShootCalInstagramFeed\Token_Cipher;
 use const ShootCalInstagramFeed\CACHE_KEY;
 use const ShootCalInstagramFeed\LOCK_KEY;
+use const ShootCalInstagramFeed\OAUTH_KEY;
 use const ShootCalInstagramFeed\OPTION_KEY;
 use const ShootCalInstagramFeed\STATUS_KEY;
 use const ShootCalInstagramFeed\VERSION;
@@ -25,6 +26,7 @@ $original_options = get_option( OPTION_KEY, false );
 $original_cache   = get_option( CACHE_KEY, false );
 $original_status  = get_option( STATUS_KEY, false );
 $original_lock    = get_option( LOCK_KEY, false );
+$original_oauth   = get_option( OAUTH_KEY, false );
 $account_id       = '17841400000000001';
 $expected_token   = 'integration-test-token';
 $mode             = 'success';
@@ -147,24 +149,27 @@ $http_mock = static function ( $preempt, array $args, string $url ) use ( &$mode
 add_filter( 'pre_http_request', $http_mock, 10, 3 );
 
 try {
-	$encrypted = Token_Cipher::encrypt( $expected_token );
-	if ( is_wp_error( $encrypted ) ) {
-		throw new RuntimeException( $encrypted->get_error_message() );
+	$stored = Config::store_connection( $expected_token, $account_id );
+	if ( is_wp_error( $stored ) ) {
+		throw new RuntimeException( $stored->get_error_message() );
+	}
+	$stored_options = Config::get();
+	$decrypted      = Config::access_token();
+	if ( is_wp_error( $decrypted ) || $expected_token !== $decrypted
+		|| $account_id !== $stored_options['instagram_account_id'] ) {
+		throw new RuntimeException( 'The OAuth connection was not stored as one encrypted account boundary.' );
+	}
+	$before_invalid = get_option( OPTION_KEY, array() );
+	$invalid_store  = Config::store_connection( 'replacement-token-value', 'not-an-account' );
+	if ( ! is_wp_error( $invalid_store ) || $before_invalid !== get_option( OPTION_KEY, array() ) ) {
+		throw new RuntimeException( 'An invalid broker account changed the saved connection.' );
 	}
 
-	update_option(
-		OPTION_KEY,
-		array(
-			'access_token'         => $encrypted,
-			'instagram_account_id' => $account_id,
-			'token_updated_at'     => time(),
-			'default_hashtag'      => '',
-			'display_limit'        => 9,
-			'columns'              => 3,
-			'scan_limit'           => 3,
-		),
-		false
-	);
+	$stored_options['default_hashtag'] = '';
+	$stored_options['display_limit']   = 9;
+	$stored_options['columns']         = 3;
+	$stored_options['scan_limit']      = 3;
+	update_option( OPTION_KEY, $stored_options, false );
 	delete_option( LOCK_KEY );
 
 	$store  = new Feed_Store( new Api_Client() );
@@ -347,4 +352,5 @@ try {
 	false === $original_cache ? delete_option( CACHE_KEY ) : update_option( CACHE_KEY, $original_cache, false );
 	false === $original_status ? delete_option( STATUS_KEY ) : update_option( STATUS_KEY, $original_status, false );
 	false === $original_lock ? delete_option( LOCK_KEY ) : update_option( LOCK_KEY, $original_lock, false );
+	false === $original_oauth ? delete_option( OAUTH_KEY ) : update_option( OAUTH_KEY, $original_oauth, false );
 }

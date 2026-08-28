@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.1.4
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,7 @@ Features:
 * Optional five-desktop/four-mobile layout and account follow button.
 * Optional post-load refresh that bypasses full-page caches while reading only WordPress's saved feed.
 * Scheduled cache refresh with a last-known-good fallback.
+* One-click Facebook authorization through ShootCal, plus manual-token fallback.
 * Manual refresh and connection status in WordPress Settings.
 
 This first release uses the Instagram API with Facebook Login, a numeric Instagram business account ID, and a long-lived Page access token created for your Meta app. It does not scrape Instagram and it cannot read Personal accounts.
@@ -32,7 +33,7 @@ This first release uses the Instagram API with Facebook Login, a numeric Instagr
 1. Upload the `shootcal-instagram-feed` directory to `/wp-content/plugins/`.
 2. Activate ShootCal Instagram Feed.
 3. Open Settings > ShootCal Instagram Feed.
-4. Enter the Instagram business account ID and a long-lived Page access token, then refresh the feed.
+4. Choose Connect with Facebook and select the linked professional Instagram account.
 5. Add `[shootcal_instagram_feed]` to a Shortcode block.
 
 To show only posts whose captions include a particular hashtag:
@@ -69,7 +70,9 @@ No. Front-end rendering reads only the WordPress cache.
 
 == External services ==
 
-This plugin connects to Meta's Graph API at `graph.facebook.com` only during a scheduled or administrator-requested refresh. It sends the configured Instagram business account ID and Page access token to request the account username, captions, media type, media URLs, post links, timestamps, and carousel cover data. The token is decrypted only for these server-to-server requests and is never included in front-end HTML.
+During one-click connection, the plugin sends this site's WordPress admin callback URL, WordPress Address, plugin version, and a one-time cryptographic challenge to the ShootCal OAuth broker at `api.shootcal.com`. ShootCal redirects the administrator to Meta, temporarily handles the resulting Page-token candidate, and releases it only to this WordPress server after the server proves possession of the one-time verifier. Tokens are never placed in browser URLs. The broker attempt expires after ten minutes.
+
+After connection, this plugin connects to Meta's Graph API at `graph.facebook.com` during a scheduled or administrator-requested refresh. It sends the configured Instagram business account ID and Page access token to request the account username, captions, media type, media URLs, post links, timestamps, and carousel cover data. The token is decrypted only for these server-to-server requests and is never included in front-end HTML.
 
 Feed images are served from the remote Meta/Facebook CDN URLs returned by the API. A visitor's browser therefore connects directly to Meta to load each visible image, which can disclose ordinary request information such as the visitor's IP address and browser user agent to Meta. The plugin applies a no-referrer policy to image requests.
 
@@ -79,6 +82,10 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.2.0 =
+* Add one-click Facebook authorization through ShootCal with one-time server-to-server token redemption.
+* Keep the existing encrypted local token storage, local feed cache, and manual-token fallback.
 
 = 0.1.4 =
 * Load dynamic-feed CSS after page load so full-page cache CSS optimizers cannot strip the feed layout.
