@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 class Assets {
 
 	private const STYLE_HANDLE = 'shootcal-instagram-feed';
+	private const SCRIPT_HANDLE = 'shootcal-instagram-feed';
 
 	public function register(): void {
 		add_action( 'wp_enqueue_scripts', array( $this, 'register_style' ) );
@@ -27,6 +28,16 @@ class Assets {
 			array(),
 			VERSION
 		);
+		wp_register_script(
+			self::SCRIPT_HANDLE,
+			PLUGIN_URL . 'assets/feed.js',
+			array(),
+			VERSION,
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
+		);
 	}
 
 	public static function enqueue(): void {
@@ -35,5 +46,21 @@ class Assets {
 		}
 		wp_enqueue_style( self::STYLE_HANDLE );
 	}
-}
 
+	public static function enqueue_dynamic(): void {
+		self::enqueue();
+		if ( ! wp_script_is( self::SCRIPT_HANDLE, 'registered' ) ) {
+			wp_register_script(
+				self::SCRIPT_HANDLE,
+				PLUGIN_URL . 'assets/feed.js',
+				array(),
+				VERSION,
+				array(
+					'in_footer' => true,
+					'strategy'  => 'defer',
+				)
+			);
+		}
+		wp_enqueue_script( self::SCRIPT_HANDLE );
+	}
+}

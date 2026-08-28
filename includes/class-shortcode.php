@@ -15,6 +15,8 @@ class Shortcode {
 
 	public const TAG = 'shootcal_instagram_feed';
 
+	private bool $rendering_fallback = false;
+
 	public function register(): void {
 		add_shortcode( self::TAG, array( $this, 'render' ) );
 	}
@@ -26,10 +28,13 @@ class Shortcode {
 		$options    = Config::get();
 		$attributes = shortcode_atts(
 			array(
-				'hashtag' => (string) $options['default_hashtag'],
-				'limit'   => (int) $options['display_limit'],
-				'columns' => (int) $options['columns'],
-				'class'   => '',
+				'hashtag'      => (string) $options['default_hashtag'],
+				'limit'        => (int) $options['display_limit'],
+				'columns'      => (int) $options['columns'],
+				'mobile_limit' => 0,
+				'follow'       => 'false',
+				'dynamic'      => 'false',
+				'class'        => '',
 			),
 			is_array( $attributes ) ? $attributes : array(),
 			self::TAG
@@ -40,10 +45,15 @@ class Shortcode {
 		$valid_hashtag  = '' === $raw_hashtag || '' !== $hashtag;
 		$limit          = max( 1, min( 30, (int) $attributes['limit'] ) );
 		$columns        = max( 1, min( 6, (int) $attributes['columns'] ) );
+		$mobile_limit   = max( 0, min( $limit, (int) $attributes['mobile_limit'] ) );
+		$show_follow    = self::attribute_is_true( $attributes['follow'] );
+		$dynamic        = ! $this->rendering_fallback && self::attribute_is_true( $attributes['dynamic'] );
+		$custom_classes = array();
 		$classes        = array( 'shootcal-instagram-feed' );
 		foreach ( preg_split( '/\s+/', (string) $attributes['class'] ) ?: array() as $class_name ) {
 			$class_name = sanitize_html_class( $class_name );
 			if ( '' !== $class_name ) {
+				$custom_classes[] = $class_name;
 				$classes[] = $class_name;
 			}
 		}
@@ -51,6 +61,31 @@ class Shortcode {
 		$cache = Feed_Store::cache_for_account( (string) $options['instagram_account_id'] );
 		$items = isset( $cache['items'] ) && is_array( $cache['items'] ) ? $cache['items'] : array();
 		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter( $items, $hashtag ), 0, $limit ) : array();
+
+		if ( $dynamic && $valid_hashtag ) {
+			Assets::enqueue_dynamic();
+
+			$fallback_attributes            = $attributes;
+			$fallback_attributes['dynamic'] = 'false';
+			$this->rendering_fallback        = true;
+			try {
+				$fallback = $this->render( $fallback_attributes );
+			} finally {
+				$this->rendering_fallback = false;
+			}
+
+			return sprintf(
+				'<div class="shootcal-instagram-feed-loader" data-endpoint="%1$s" data-hashtag="%2$s" data-limit="%3$d" data-columns="%4$d" data-mobile-limit="%5$d" data-follow="%6$s" data-class="%7$s">%8$s</div>',
+				esc_url( rest_url( Rest_Controller::ROUTE ) ),
+				esc_attr( $hashtag ),
+				$limit,
+				$columns,
+				$mobile_limit,
+				$show_follow ? 'true' : 'false',
+				esc_attr( implode( ' ', array_unique( $custom_classes ) ) ),
+				$fallback
+			);
+		}
 
 		if ( empty( $items ) ) {
 			if ( empty( $cache ) && ! current_user_can( 'manage_options' ) ) {
@@ -75,15 +110,19 @@ class Shortcode {
 		$tablet  = min( $columns, 3 );
 		$mobile  = min( $columns, 2 );
 		$account = isset( $cache['account']['username'] ) && is_string( $cache['account']['username'] ) ? $cache['account']['username'] : '';
+		$profile = '' !== $account && 1 === preg_match( '/^[A-Za-z0-9._]+$/', $account )
+			? 'https://www.instagram.com/' . $account . '/'
+			: '';
 
 		ob_start();
 		?>
-		<div
-			class="<?php echo esc_attr( implode( ' ', array_unique( $classes ) ) ); ?>"
-			style="--scif-columns:<?php echo esc_attr( (string) $columns ); ?>;--scif-columns-tablet:<?php echo esc_attr( (string) $tablet ); ?>;--scif-columns-mobile:<?php echo esc_attr( (string) $mobile ); ?>"
-			<?php echo '' !== $hashtag ? 'data-hashtag="' . esc_attr( $hashtag ) . '"' : ''; ?>
-		>
-			<?php foreach ( $items as $item ) : ?>
+		<div class="shootcal-instagram-feed-shell">
+			<div
+				class="<?php echo esc_attr( implode( ' ', array_unique( $classes ) ) ); ?>"
+				style="--scif-columns:<?php echo esc_attr( (string) $columns ); ?>;--scif-columns-tablet:<?php echo esc_attr( (string) $tablet ); ?>;--scif-columns-mobile:<?php echo esc_attr( (string) $mobile ); ?>"
+				<?php echo '' !== $hashtag ? 'data-hashtag="' . esc_attr( $hashtag ) . '"' : ''; ?>
+			>
+			<?php foreach ( $items as $item_index => $item ) : ?>
 				<?php
 				if ( ! is_array( $item ) ) {
 					continue;
@@ -104,8 +143,12 @@ class Shortcode {
 						wp_date( get_option( 'date_format' ), $timestamp )
 					)
 					: __( 'View this post on Instagram', 'shootcal-instagram-feed' );
+				$item_classes = array( 'shootcal-instagram-feed__item' );
+				if ( 0 < $mobile_limit && (int) $item_index >= $mobile_limit ) {
+					$item_classes[] = 'shootcal-instagram-feed__item--mobile-hidden';
+				}
 				?>
-				<a class="shootcal-instagram-feed__item" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
+				<a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
 					<img class="shootcal-instagram-feed__image" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-instagram-feed' ); ?></span>
@@ -114,9 +157,24 @@ class Shortcode {
 					<?php endif; ?>
 				</a>
 			<?php endforeach; ?>
+			</div>
+			<?php if ( $show_follow && '' !== $profile ) : ?>
+				<p class="shootcal-instagram-feed__follow">
+					<a class="shootcal-instagram-feed__follow-link" href="<?php echo esc_url( $profile ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Follow on Instagram', 'shootcal-instagram-feed' ); ?></a>
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Interpret an opt-in shortcode boolean.
+	 *
+	 * @param mixed $value Shortcode attribute value.
+	 */
+	private static function attribute_is_true( $value ): bool {
+		return in_array( strtolower( trim( (string) $value ) ), array( '1', 'true', 'yes', 'on' ), true );
 	}
 }

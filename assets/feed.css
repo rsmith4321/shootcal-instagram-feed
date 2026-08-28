@@ -1,3 +1,8 @@
+.shootcal-instagram-feed-shell,
+.shootcal-instagram-feed-loader {
+	width: 100%;
+}
+
 .shootcal-instagram-feed {
 	display: grid;
 	grid-template-columns: repeat(var(--scif-columns, 3), minmax(0, 1fr));
@@ -54,6 +59,35 @@
 	font-size: 0.9375rem;
 }
 
+.shootcal-instagram-feed__follow {
+	margin: 10px 0 0;
+	text-align: center;
+}
+
+.shootcal-instagram-feed__follow-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 38px;
+	padding: 8px 14px;
+	border-radius: 4px;
+	background: #408bd1;
+	color: #fff;
+	font: 600 14px/1.2 system-ui, sans-serif;
+	text-decoration: none;
+}
+
+.shootcal-instagram-feed__follow-link:hover,
+.shootcal-instagram-feed__follow-link:focus-visible {
+	background: #2f73b2;
+	color: #fff;
+}
+
+.shootcal-instagram-feed__follow-link:focus-visible {
+	outline: 3px solid currentColor;
+	outline-offset: 2px;
+}
+
 @media (max-width: 800px) {
 	.shootcal-instagram-feed {
 		grid-template-columns: repeat(var(--scif-columns-tablet, 3), minmax(0, 1fr));
@@ -64,6 +98,10 @@
 	.shootcal-instagram-feed {
 		grid-template-columns: repeat(var(--scif-columns-mobile, 2), minmax(0, 1fr));
 	}
+
+	.shootcal-instagram-feed__item--mobile-hidden {
+		display: none;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -71,4 +109,3 @@
 		transition: none;
 	}
 }
-

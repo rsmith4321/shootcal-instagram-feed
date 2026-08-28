@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,6 +20,8 @@ Features:
 * Images, video thumbnails, Reels, and carousel cover images.
 * Exact, case-insensitive caption hashtag filtering.
 * Shortcode-specific hashtags and display limits.
+* Optional five-desktop/four-mobile layout and account follow button.
+* Optional post-load refresh that bypasses full-page caches while reading only WordPress's saved feed.
 * Scheduled cache refresh with a last-known-good fallback.
 * Manual refresh and connection status in WordPress Settings.
 
@@ -42,6 +44,14 @@ The leading `#` is optional. Additional examples:
 `[shootcal_instagram_feed hashtag="#weddings" limit="9" columns="3"]`
 
 `[shootcal_instagram_feed limit="12" columns="4"]`
+
+To mirror a compact social feed with five desktop tiles, four mobile tiles, and an account button:
+
+`[shootcal_instagram_feed hashtag="wedding" limit="5" columns="5" mobile_limit="4" follow="true"]`
+
+If the surrounding page is held in a full-page cache, add `dynamic="true"`. The cached page keeps a server-rendered fallback, while a small deferred script refreshes the markup after load from a public, non-stored WordPress REST response. That route reads only the last successful plugin cache and never triggers an Instagram API request:
+
+`[shootcal_instagram_feed hashtag="wedding" limit="5" columns="5" mobile_limit="4" follow="true" dynamic="true"]`
 
 == Frequently Asked Questions ==
 
@@ -69,6 +79,11 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.1.2 =
+
+* Add optional responsive mobile item limits and an account follow button.
+* Add an opt-in JavaScript refresh backed by a cache-only REST endpoint for full-page-cached sites.
 
 = 0.1.1 =
 

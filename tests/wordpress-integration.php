@@ -12,6 +12,7 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 
 use ShootCalInstagramFeed\Api_Client;
 use ShootCalInstagramFeed\Feed_Store;
+use ShootCalInstagramFeed\Rest_Controller;
 use ShootCalInstagramFeed\Shortcode;
 use ShootCalInstagramFeed\Token_Cipher;
 use const ShootCalInstagramFeed\CACHE_KEY;
@@ -178,6 +179,86 @@ try {
 	}
 
 	$good_cache = Feed_Store::cache();
+	$rendered   = ( new Shortcode() )->render(
+		array(
+			'hashtag'      => 'wedding',
+			'limit'        => 2,
+			'columns'      => 2,
+			'mobile_limit' => 1,
+			'follow'       => 'true',
+		)
+	);
+	if ( 2 !== substr_count( $rendered, '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'The shortcode did not render the requested exact-hashtag items.' );
+	}
+	if ( 1 !== substr_count( $rendered, 'shootcal-instagram-feed__item--mobile-hidden' ) ) {
+		throw new RuntimeException( 'The shortcode did not apply the mobile display limit.' );
+	}
+	if ( ! str_contains( $rendered, 'https://www.instagram.com/shootcal_fixture/' ) || ! str_contains( $rendered, 'Follow on Instagram' ) ) {
+		throw new RuntimeException( 'The shortcode did not render the requested account follow link.' );
+	}
+
+	$dynamic = ( new Shortcode() )->render(
+		array(
+			'hashtag'      => 'wedding',
+			'limit'        => 2,
+			'columns'      => 2,
+			'mobile_limit' => 1,
+			'follow'       => 'true',
+			'class'        => 'fixture-class',
+			'dynamic'      => 'true',
+		)
+	);
+	if ( ! str_contains( $dynamic, 'shootcal-instagram-feed-loader' ) || ! str_contains( $dynamic, '/shootcal-instagram-feed/v1/feed' ) ) {
+		throw new RuntimeException( 'The dynamic shortcode did not render its cache-only loader.' );
+	}
+	if ( ! str_contains( $dynamic, 'data-class="fixture-class"' ) || ! str_contains( $dynamic, 'shootcal-instagram-feed fixture-class' ) ) {
+		throw new RuntimeException( 'The dynamic shortcode did not preserve its custom class.' );
+	}
+
+	$invalid_dynamic = ( new Shortcode() )->render(
+		array(
+			'hashtag' => 'not-valid!',
+			'dynamic' => 'true',
+		)
+	);
+	if ( str_contains( $invalid_dynamic, 'shootcal-instagram-feed-loader' ) || str_contains( $invalid_dynamic, 'shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'An invalid dynamic hashtag exposed an unfiltered feed.' );
+	}
+
+	$force_dynamic = static function ( array $output ): array {
+		$output['dynamic'] = 'true';
+		return $output;
+	};
+	add_filter( 'shortcode_atts_' . Shortcode::TAG, $force_dynamic );
+	$filtered_dynamic = ( new Shortcode() )->render( array( 'hashtag' => 'wedding' ) );
+	remove_filter( 'shortcode_atts_' . Shortcode::TAG, $force_dynamic );
+	if ( 1 !== substr_count( $filtered_dynamic, 'shootcal-instagram-feed-loader' ) ) {
+		throw new RuntimeException( 'A shortcode attributes filter caused recursive dynamic fallback rendering.' );
+	}
+
+	$request = new WP_REST_Request( 'GET', '/' . Rest_Controller::ROUTE );
+	$request->set_param( 'hashtag', 'wedding' );
+	$request->set_param( 'limit', 2 );
+	$request->set_param( 'columns', 2 );
+	$request->set_param( 'mobile_limit', 1 );
+	$request->set_param( 'follow', 'true' );
+	$request->set_param( 'class', 'fixture-class' );
+	$response_data = ( new Rest_Controller() )->get_feed( $request );
+	$payload       = $response_data->get_data();
+	$headers       = $response_data->get_headers();
+	if ( 200 !== $response_data->get_status() || 2 !== substr_count( (string) ( $payload['html'] ?? '' ), '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'The cache-only REST response did not render the requested feed.' );
+	}
+	if ( str_contains( (string) ( $payload['html'] ?? '' ), 'shootcal-instagram-feed-loader' ) ) {
+		throw new RuntimeException( 'The REST response recursively rendered a dynamic loader.' );
+	}
+	if ( ! str_contains( (string) ( $payload['html'] ?? '' ), 'shootcal-instagram-feed fixture-class' ) ) {
+		throw new RuntimeException( 'The REST response did not preserve its custom class.' );
+	}
+	if ( 'no-store' !== ( $headers['Cache-Control'] ?? '' ) ) {
+		throw new RuntimeException( 'The REST response did not prevent stale account HTML caching.' );
+	}
 	$mode       = 'outage';
 	$result     = $store->refresh();
 	if ( ! is_wp_error( $result ) || $good_cache !== Feed_Store::cache() ) {
