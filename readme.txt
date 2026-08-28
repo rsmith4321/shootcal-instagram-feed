@@ -68,6 +68,10 @@ The last successful cached metadata stays visible. The actual images remain host
 
 No. Front-end rendering reads only the WordPress cache.
 
+= How do I delete the Instagram connection data? =
+
+Open Settings > ShootCal Instagram Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
+
 == External services ==
 
 During one-click connection, the plugin sends this site's WordPress admin callback URL, WordPress Address, plugin version, and a one-time cryptographic challenge to the ShootCal OAuth broker at `api.shootcal.com`. ShootCal redirects the administrator to Meta, temporarily handles the resulting Page-token candidate, and releases it only to this WordPress server after the server proves possession of the one-time verifier. Tokens are never placed in browser URLs. The broker attempt expires after ten minutes.
@@ -86,6 +90,7 @@ Use of these services is subject to Meta's terms and privacy policy:
 = 0.2.0 =
 * Add one-click Facebook authorization through ShootCal with one-time server-to-server token redemption.
 * Keep the existing encrypted local token storage, local feed cache, and manual-token fallback.
+* Clear the selected account boundary on disconnect and document complete plugin data removal.
 
 = 0.1.4 =
 * Load dynamic-feed CSS after page load so full-page cache CSS optimizers cannot strip the feed layout.

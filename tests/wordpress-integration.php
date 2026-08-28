@@ -164,6 +164,18 @@ try {
 	if ( ! is_wp_error( $invalid_store ) || $before_invalid !== get_option( OPTION_KEY, array() ) ) {
 		throw new RuntimeException( 'An invalid broker account changed the saved connection.' );
 	}
+	Config::clear_token();
+	$cleared_options = Config::get();
+	if ( '' !== $cleared_options['access_token']
+		|| '' !== $cleared_options['instagram_account_id']
+		|| 0 !== $cleared_options['token_updated_at'] ) {
+		throw new RuntimeException( 'Disconnect did not clear the encrypted token and selected account boundary.' );
+	}
+	$stored = Config::store_connection( $expected_token, $account_id );
+	if ( is_wp_error( $stored ) ) {
+		throw new RuntimeException( $stored->get_error_message() );
+	}
+	$stored_options = Config::get();
 
 	$stored_options['default_hashtag'] = '';
 	$stored_options['display_limit']   = 9;

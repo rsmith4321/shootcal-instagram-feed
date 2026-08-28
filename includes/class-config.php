@@ -152,9 +152,10 @@ class Config {
 	}
 
 	public static function clear_token(): void {
-		$options                     = self::get();
-		$options['access_token']     = '';
-		$options['token_updated_at'] = 0;
+		$options                         = self::get();
+		$options['access_token']         = '';
+		$options['instagram_account_id'] = '';
+		$options['token_updated_at']     = 0;
 		update_option( OPTION_KEY, $options, false );
 	}
 }
