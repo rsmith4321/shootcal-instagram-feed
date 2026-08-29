@@ -206,7 +206,7 @@ class Settings {
 		$result = $this->broker->redeem( $handoff, $verifier );
 		self::wipe( $verifier );
 		if ( is_wp_error( $result ) ) {
-			$this->redirect_result( 'oauth_error' );
+			$this->redirect_result( 'oauth_broker_error' );
 		}
 		if ( 'selecting' === $result['status'] ) {
 			$handoff_ciphertext = Token_Cipher::encrypt( $handoff );
@@ -246,7 +246,10 @@ class Settings {
 		$result = $this->broker->redeem( $handoff, $verifier, $candidate );
 		self::wipe( $handoff );
 		self::wipe( $verifier );
-		if ( is_wp_error( $result ) || 'connected' !== ( $result['status'] ?? '' ) ) {
+		if ( is_wp_error( $result ) ) {
+			$this->redirect_result( 'oauth_broker_error' );
+		}
+		if ( 'connected' !== ( $result['status'] ?? '' ) ) {
 			$this->redirect_result( 'oauth_error' );
 		}
 		$this->finish_oauth_connection( $result );
@@ -283,6 +286,10 @@ class Settings {
 			echo '<div class="notice notice-info is-dismissible"><p>' . esc_html__( 'Instagram connection was canceled. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
 		} elseif ( 'oauth_expired' === $result ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'The Instagram connection request expired. Start again.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_broker_error' === $result ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'ShootCal completed the Facebook step, but WordPress could not verify the secure connection response. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'oauth_store_error' === $result ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'ShootCal completed the Facebook step, but WordPress could not store the encrypted connection. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
 		} elseif ( 'oauth_error' === $result ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Instagram could not be connected. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
 		}
@@ -440,7 +447,7 @@ class Settings {
 			self::wipe( $result['accessToken'] );
 		}
 		if ( is_wp_error( $stored ) ) {
-			$this->redirect_result( 'oauth_error' );
+			$this->redirect_result( 'oauth_store_error' );
 		}
 		delete_option( OAUTH_KEY );
 		delete_option( CACHE_KEY );
