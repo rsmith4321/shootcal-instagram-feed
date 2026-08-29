@@ -14,6 +14,13 @@ defined( 'ABSPATH' ) || exit;
 class Config {
 
 	/**
+	 * True only while the plugin is persisting an already validated internal
+	 * update. This lets the Settings sanitizer distinguish trusted OAuth and
+	 * disconnect writes from browser-submitted settings.
+	 */
+	private static bool $internal_write = false;
+
+	/**
 	 * Default settings.
 	 *
 	 * @return array<string, mixed>
@@ -46,6 +53,10 @@ class Config {
 		if ( false === get_option( OPTION_KEY, false ) ) {
 			add_option( OPTION_KEY, self::defaults(), '', false );
 		}
+	}
+
+	public static function is_internal_write(): bool {
+		return self::$internal_write;
 	}
 
 	public static function has_token(): bool {
@@ -100,14 +111,7 @@ class Config {
 		$options                     = self::get();
 		$options['access_token']     = $encrypted;
 		$options['token_updated_at'] = time();
-		if ( ! update_option( OPTION_KEY, $options, false ) ) {
-			return new \WP_Error(
-				'shootcal_instagram_store_failed',
-				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
-			);
-		}
-
-		return true;
+		return self::persist( $options );
 	}
 
 	/**
@@ -141,14 +145,7 @@ class Config {
 		$options['access_token']         = $encrypted;
 		$options['instagram_account_id'] = $account_id;
 		$options['token_updated_at']     = time();
-		if ( ! update_option( OPTION_KEY, $options, false ) ) {
-			return new \WP_Error(
-				'shootcal_instagram_store_failed',
-				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
-			);
-		}
-
-		return true;
+		return self::persist( $options );
 	}
 
 	public static function clear_token(): void {
@@ -156,6 +153,34 @@ class Config {
 		$options['access_token']         = '';
 		$options['instagram_account_id'] = '';
 		$options['token_updated_at']     = 0;
-		update_option( OPTION_KEY, $options, false );
+		self::persist( $options );
+	}
+
+	/**
+	 * Persist a trusted, validated options document and verify the exact value
+	 * WordPress stored. update_option() may legitimately return false when the
+	 * database already contains the requested value, so read-back is the
+	 * authoritative success check.
+	 *
+	 * @param array<string, mixed> $options Complete normalized options.
+	 * @return true|\WP_Error
+	 */
+	private static function persist( array $options ) {
+		self::$internal_write = true;
+		try {
+			update_option( OPTION_KEY, $options, false );
+		} finally {
+			self::$internal_write = false;
+		}
+
+		$stored = get_option( OPTION_KEY, false );
+		if ( ! is_array( $stored ) || $stored !== $options ) {
+			return new \WP_Error(
+				'shootcal_instagram_store_failed',
+				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
+			);
+		}
+
+		return true;
 	}
 }

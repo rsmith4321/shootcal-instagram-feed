@@ -14,6 +14,7 @@ use ShootCalInstagramFeed\Api_Client;
 use ShootCalInstagramFeed\Config;
 use ShootCalInstagramFeed\Feed_Store;
 use ShootCalInstagramFeed\Rest_Controller;
+use ShootCalInstagramFeed\Settings;
 use ShootCalInstagramFeed\Shortcode;
 use const ShootCalInstagramFeed\CACHE_KEY;
 use const ShootCalInstagramFeed\LOCK_KEY;
@@ -157,6 +158,9 @@ $http_mock = static function ( $preempt, array $args, string $url ) use ( &$mode
 add_filter( 'pre_http_request', $http_mock, 10, 3 );
 
 try {
+	// Reproduce the normal wp-admin boundary where register_setting() has added
+	// its sanitizer before the OAuth callback performs a trusted internal save.
+	( new Settings( new Feed_Store( new Api_Client() ) ) )->register_settings();
 	$stored = Config::store_connection( $expected_token, $account_id );
 	if ( is_wp_error( $stored ) ) {
 		throw new RuntimeException( $stored->get_error_message() );

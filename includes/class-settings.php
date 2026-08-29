@@ -61,6 +61,10 @@ class Settings {
 	 * @return array<string, mixed>
 	 */
 	public function sanitize( $input ): array {
+		if ( Config::is_internal_write() ) {
+			return is_array( $input ) ? $input : Config::defaults();
+		}
+
 		$current = Config::get();
 		$input   = is_array( $input ) ? $input : array();
 		$submitted_account_id = isset( $input['instagram_account_id'] ) ? trim( (string) $input['instagram_account_id'] ) : '';
