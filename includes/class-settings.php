@@ -36,8 +36,8 @@ class Settings {
 
 	public function add_page(): void {
 		add_options_page(
-			__( 'ShootCal Instagram Feed', 'shootcal-instagram-feed' ),
-			__( 'ShootCal Instagram Feed', 'shootcal-instagram-feed' ),
+			__( 'ShootCal Social Feed', 'shootcal-instagram-feed' ),
+			__( 'ShootCal Social Feed', 'shootcal-instagram-feed' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( $this, 'render_page' )
@@ -176,7 +176,7 @@ class Settings {
 		}
 
 		// OAuth_Broker has already constrained this to Meta's exact HTTPS dialog.
-		wp_redirect( $result['authorizationUrl'], 302, 'ShootCal Instagram Feed' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+		wp_redirect( $result['authorizationUrl'], 302, 'ShootCal Social Feed' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		exit;
 	}
 
@@ -290,7 +290,7 @@ class Settings {
 			? $this->oauth_context( sanitize_text_field( wp_unslash( $_GET['oauth_state'] ) ) ) : null;
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'ShootCal Instagram Feed', 'shootcal-instagram-feed' ); ?></h1>
+			<h1><?php esc_html_e( 'ShootCal Social Feed', 'shootcal-instagram-feed' ); ?></h1>
 			<p style="max-width:55em;"><?php esc_html_e( 'A small, server-cached feed for one Instagram Business or Creator account. Page visitors never trigger live Instagram API calls.', 'shootcal-instagram-feed' ); ?></p>
 
 			<h2><?php esc_html_e( 'Connection status', 'shootcal-instagram-feed' ); ?></h2>

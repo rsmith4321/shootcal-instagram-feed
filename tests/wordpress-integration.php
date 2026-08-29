@@ -22,6 +22,14 @@ use const ShootCalInstagramFeed\OPTION_KEY;
 use const ShootCalInstagramFeed\STATUS_KEY;
 use const ShootCalInstagramFeed\VERSION;
 
+if ( ! function_exists( 'get_plugin_data' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+$plugin_data = get_plugin_data( dirname( __DIR__ ) . '/shootcal-instagram-feed.php', false, false );
+if ( 'ShootCal Social Feed' !== ( $plugin_data['Name'] ?? '' ) ) {
+	throw new RuntimeException( 'The plugin does not expose the selected ShootCal Social Feed name.' );
+}
+
 $original_options = get_option( OPTION_KEY, false );
 $original_cache   = get_option( CACHE_KEY, false );
 $original_status  = get_option( STATUS_KEY, false );

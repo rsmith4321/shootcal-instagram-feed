@@ -1,4 +1,4 @@
-=== ShootCal Instagram Feed ===
+=== ShootCal Social Feed ===
 Contributors: rsmith4321
 Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
@@ -12,7 +12,7 @@ A lightweight, cached Instagram feed for professional accounts with local hashta
 
 == Description ==
 
-ShootCal Instagram Feed displays recent posts from one connected Instagram Business or Creator account. It fetches media on a schedule, stores the last successful response in WordPress, and renders the cached posts without visitor-triggered Instagram API requests.
+ShootCal Social Feed displays recent posts from one connected Instagram Business or Creator account. It fetches media on a schedule, stores the last successful response in WordPress, and renders the cached posts without visitor-triggered Instagram API requests.
 
 Features:
 
@@ -31,8 +31,8 @@ This first release uses the Instagram API with Facebook Login, a numeric Instagr
 == Installation ==
 
 1. Upload the `shootcal-instagram-feed` directory to `/wp-content/plugins/`.
-2. Activate ShootCal Instagram Feed.
-3. Open Settings > ShootCal Instagram Feed.
+2. Activate ShootCal Social Feed.
+3. Open Settings > ShootCal Social Feed.
 4. Choose Connect with Facebook and select the linked professional Instagram account.
 5. Add `[shootcal_instagram_feed]` to a Shortcode block.
 
@@ -70,7 +70,7 @@ No. Front-end rendering reads only the WordPress cache.
 
 = How do I delete the Instagram connection data? =
 
-Open Settings > ShootCal Instagram Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
+Open Settings > ShootCal Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
 
 == External services ==
 
@@ -88,6 +88,7 @@ Use of these services is subject to Meta's terms and privacy policy:
 == Changelog ==
 
 = 0.2.0 =
+* Rename the plugin to ShootCal Social Feed while preserving existing shortcodes, settings, and cached data.
 * Add one-click Facebook authorization through ShootCal with one-time server-to-server token redemption.
 * Keep the existing encrypted local token storage, local feed cache, and manual-token fallback.
 * Clear the selected account boundary on disconnect and document complete plugin data removal.

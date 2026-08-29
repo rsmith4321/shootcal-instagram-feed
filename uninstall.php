@@ -1,6 +1,6 @@
 <?php
 /**
- * Remove ShootCal Instagram Feed data when the plugin is deleted.
+ * Remove ShootCal Social Feed data when the plugin is deleted.
  *
  * @package ShootCalInstagramFeed
  */
