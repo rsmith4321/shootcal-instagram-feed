@@ -72,6 +72,37 @@
 		return stylesheetPromise;
 	}
 
+	function activateLazyImages( loader ) {
+		// Chromium never natively lazy-loads images parsed through an
+		// innerHTML assignment, so images injected after the AJAX refresh
+		// would stay unloaded forever. Keep the lazy behavior ourselves:
+		// promote them to eager only once the feed nears the viewport.
+		var promote = function () {
+			loader.querySelectorAll( 'img[loading="lazy"]' ).forEach( function ( image ) {
+				image.loading = 'eager';
+			} );
+		};
+
+		if ( ! ( 'IntersectionObserver' in window ) ) {
+			promote();
+			return;
+		}
+
+		var observer = new IntersectionObserver(
+			function ( entries ) {
+				var intersecting = entries.some( function ( entry ) {
+					return entry.isIntersecting;
+				} );
+				if ( intersecting ) {
+					observer.disconnect();
+					promote();
+				}
+			},
+			{ rootMargin: '600px 0px' }
+		);
+		observer.observe( loader );
+	}
+
 	function loadFeed( loader ) {
 		if ( loader.dataset.loading === 'true' || loader.dataset.loaded === 'true' ) {
 			return;
@@ -87,7 +118,7 @@
 			return;
 		}
 
-		[ 'hashtag', 'limit', 'columns', 'mobileLimit', 'follow', 'class' ].forEach( function ( key ) {
+		[ 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobileLimit', 'follow', 'class' ].forEach( function ( key ) {
 			const value = loader.dataset[ key ];
 			if ( undefined !== value && '' !== value ) {
 				const parameter = 'mobileLimit' === key ? 'mobile_limit' : key;
@@ -114,6 +145,7 @@
 				if ( payload && 'string' === typeof payload.html && '' !== payload.html.trim() ) {
 					loader.innerHTML = payload.html;
 					loader.dataset.loaded = 'true';
+					activateLazyImages( loader );
 				}
 			} )
 			.catch( function () {

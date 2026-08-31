@@ -26,6 +26,7 @@ require dirname( __DIR__ ) . '/uninstall.php';
 
 $expected_options = array(
 	'shootcal_instagram_feed_options',
+	'shootcal_instagram_feed_feeds',
 	'shootcal_instagram_feed_cache',
 	'shootcal_instagram_feed_status',
 	'shootcal_instagram_feed_refresh_lock',

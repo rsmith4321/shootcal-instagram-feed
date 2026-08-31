@@ -33,12 +33,22 @@ class Rest_Controller {
 				'callback'            => array( $this, 'get_feed' ),
 				'permission_callback' => '__return_true',
 				'args'                => array(
+					'feed'         => array(
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
 					'hashtag'      => array(
 						'default'           => '',
 						'sanitize_callback' => 'sanitize_text_field',
 						'validate_callback' => static function ( $value ): bool {
-							$value = trim( (string) $value );
-							return '' === $value || '' !== Hashtag_Filter::normalize( $value );
+							return null !== Hashtag_Filter::normalize_list( (string) $value );
+						},
+					),
+					'exclude'      => array(
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_text_field',
+						'validate_callback' => static function ( $value ): bool {
+							return null !== Hashtag_Filter::normalize_list( (string) $value );
 						},
 					),
 					'limit'        => array(
@@ -67,15 +77,16 @@ class Rest_Controller {
 	}
 
 	public function get_feed( WP_REST_Request $request ): WP_REST_Response {
-		$attributes = array(
-			'hashtag'      => (string) $request->get_param( 'hashtag' ),
-			'limit'        => max( 1, min( 30, (int) $request->get_param( 'limit' ) ) ),
-			'columns'      => max( 1, min( 6, (int) $request->get_param( 'columns' ) ) ),
-			'mobile_limit' => max( 0, min( 30, (int) $request->get_param( 'mobile_limit' ) ) ),
-			'follow'       => (string) $request->get_param( 'follow' ),
-			'class'        => (string) $request->get_param( 'class' ),
-			'dynamic'      => 'false',
-		);
+		// Forward only parameters the loader actually sent: a saved preset must
+		// not be overridden by this route's defaults, and the shortcode renderer
+		// clamps and validates every value again.
+		$sent       = $request->get_query_params();
+		$attributes = array( 'dynamic' => 'false' );
+		foreach ( array( 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobile_limit', 'follow', 'class' ) as $key ) {
+			if ( isset( $sent[ $key ] ) ) {
+				$attributes[ $key ] = $request->get_param( $key );
+			}
+		}
 
 		$options    = Config::get();
 		$cache      = Feed_Store::cache_for_account( (string) $options['instagram_account_id'] );

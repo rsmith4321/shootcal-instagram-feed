@@ -26,9 +26,27 @@ class Shortcode {
 	 */
 	public function render( $attributes = array() ): string {
 		$options    = Config::get();
+		$raw        = is_array( $attributes ) ? $attributes : array();
+		$author_raw = $raw;
+		$feed_id    = isset( $raw['feed'] ) ? absint( $raw['feed'] ) : 0;
+		if ( $feed_id > 0 ) {
+			$preset = Feeds::get( $feed_id );
+			if ( null === $preset ) {
+				if ( ! current_user_can( 'manage_options' ) ) {
+					return '';
+				}
+				Assets::enqueue();
+				/* translators: %d: requested feed id. */
+				return '<p class="shootcal-instagram-feed__empty">' . esc_html( sprintf( __( 'ShootCal Social Feed %d does not exist. Recreate it or update this shortcode.', 'shootcal-instagram-feed' ), $feed_id ) ) . '</p>';
+			}
+			// Explicit shortcode attributes still override the saved preset.
+			$raw = array_merge( Feeds::to_shortcode_attributes( $preset ), $raw );
+		}
 		$attributes = shortcode_atts(
 			array(
+				'feed'         => 0,
 				'hashtag'      => (string) $options['default_hashtag'],
+				'exclude'      => '',
 				'limit'        => (int) $options['display_limit'],
 				'columns'      => (int) $options['columns'],
 				'mobile_limit' => 0,
@@ -36,13 +54,17 @@ class Shortcode {
 				'dynamic'      => 'false',
 				'class'        => '',
 			),
-			is_array( $attributes ) ? $attributes : array(),
+			$raw,
 			self::TAG
 		);
 
-		$raw_hashtag    = trim( (string) $attributes['hashtag'] );
-		$hashtag        = Hashtag_Filter::normalize( $raw_hashtag );
-		$valid_hashtag  = '' === $raw_hashtag || '' !== $hashtag;
+		$include_tags   = Hashtag_Filter::normalize_list( (string) $attributes['hashtag'] );
+		$exclude_tags   = Hashtag_Filter::normalize_list( (string) $attributes['exclude'] );
+		$valid_hashtag  = null !== $include_tags && null !== $exclude_tags;
+		$include_tags   = $include_tags ?? array();
+		$exclude_tags   = $exclude_tags ?? array();
+		$hashtag        = implode( ',', $include_tags );
+		$exclude        = implode( ',', $exclude_tags );
 		$limit          = max( 1, min( 30, (int) $attributes['limit'] ) );
 		$columns        = max( 1, min( 6, (int) $attributes['columns'] ) );
 		$mobile_limit   = max( 0, min( $limit, (int) $attributes['mobile_limit'] ) );
@@ -60,7 +82,7 @@ class Shortcode {
 
 		$cache = Feed_Store::cache_for_account( (string) $options['instagram_account_id'] );
 		$items = isset( $cache['items'] ) && is_array( $cache['items'] ) ? $cache['items'] : array();
-		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter( $items, $hashtag ), 0, $limit ) : array();
+		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter_list( $items, $include_tags, $exclude_tags ), 0, $limit ) : array();
 
 		if ( $dynamic && $valid_hashtag ) {
 			Assets::enqueue_dynamic();
@@ -74,33 +96,56 @@ class Shortcode {
 				$this->rendering_fallback = false;
 			}
 
-			return sprintf(
-				'<div class="shootcal-instagram-feed-loader" data-endpoint="%1$s" data-stylesheet="%2$s" data-hashtag="%3$s" data-limit="%4$d" data-columns="%5$d" data-mobile-limit="%6$d" data-follow="%7$s" data-class="%8$s">%9$s</div>',
-				esc_url( rest_url( Rest_Controller::ROUTE ) ),
-				esc_url( Assets::stylesheet_url() ),
-				esc_attr( $hashtag ),
-				$limit,
-				$columns,
-				$mobile_limit,
-				$show_follow ? 'true' : 'false',
-				esc_attr( implode( ' ', array_unique( $custom_classes ) ) ),
-				$fallback
-			);
+			if ( $feed_id > 0 ) {
+				// A preset feed resolves live at request time, so a cached page
+				// picks up later admin edits. Only author-typed overrides ride along.
+				$loader_data = array( 'feed' => (string) $feed_id );
+				foreach ( array( 'hashtag', 'exclude', 'limit', 'columns', 'mobile-limit' => 'mobile_limit', 'follow' ) as $data_key => $attribute_key ) {
+					$data_key = is_string( $data_key ) ? $data_key : $attribute_key;
+					if ( isset( $author_raw[ $attribute_key ] ) && is_scalar( $author_raw[ $attribute_key ] ) ) {
+						$loader_data[ $data_key ] = (string) $author_raw[ $attribute_key ];
+					}
+				}
+			} else {
+				$loader_data = array(
+					'hashtag'      => $hashtag,
+					'exclude'      => $exclude,
+					'limit'        => (string) $limit,
+					'columns'      => (string) $columns,
+					'mobile-limit' => (string) $mobile_limit,
+					'follow'       => $show_follow ? 'true' : 'false',
+				);
+			}
+			$loader_data['endpoint']   = rest_url( Rest_Controller::ROUTE );
+			$loader_data['stylesheet'] = Assets::stylesheet_url();
+			$loader_data['class']      = implode( ' ', array_unique( $custom_classes ) );
+
+			$loader_html = '<div class="shootcal-instagram-feed-loader"';
+			foreach ( $loader_data as $data_key => $data_value ) {
+				if ( '' === $data_value ) {
+					continue;
+				}
+				$data_value   = in_array( $data_key, array( 'endpoint', 'stylesheet' ), true ) ? esc_url( $data_value ) : esc_attr( $data_value );
+				$loader_html .= ' data-' . $data_key . '="' . $data_value . '"';
+			}
+
+			return $loader_html . '>' . $fallback . '</div>';
 		}
 
 		if ( empty( $items ) ) {
-			if ( empty( $cache ) && ! current_user_can( 'manage_options' ) ) {
+			// Visitors never see plumbing text; only administrators get guidance.
+			if ( ! current_user_can( 'manage_options' ) ) {
 				return '';
 			}
 
 			Assets::enqueue();
 			$message = ! $valid_hashtag
-				? __( 'The Instagram hashtag must contain only letters, numbers, or underscores.', 'shootcal-instagram-feed' )
+				? __( 'Instagram hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-instagram-feed' )
 				: ( '' !== $hashtag
 					? sprintf(
-						/* translators: %s: requested hashtag. */
-						__( 'No cached Instagram posts matched #%s.', 'shootcal-instagram-feed' ),
-						$hashtag
+						/* translators: %s: requested hashtags. */
+						__( 'No cached Instagram posts matched %s.', 'shootcal-instagram-feed' ),
+						'#' . str_replace( ',', ' #', $hashtag )
 					)
 					: __( 'No Instagram posts are cached yet.', 'shootcal-instagram-feed' ) );
 

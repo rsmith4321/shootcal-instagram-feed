@@ -27,11 +27,63 @@ class Settings {
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'add_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_warn_stale_cache' ) );
 		add_action( 'admin_post_shootcal_instagram_refresh', array( $this, 'handle_refresh' ) );
 		add_action( 'admin_post_shootcal_instagram_disconnect', array( $this, 'handle_disconnect' ) );
 		add_action( 'admin_post_shootcal_instagram_connect', array( $this, 'handle_connect' ) );
 		add_action( 'admin_post_shootcal_instagram_oauth_callback', array( $this, 'handle_oauth_callback' ) );
 		add_action( 'admin_post_shootcal_instagram_oauth_select', array( $this, 'handle_oauth_select' ) );
+		add_action( 'admin_post_shootcal_instagram_feed_save', array( $this, 'handle_feed_save' ) );
+		add_action( 'admin_post_shootcal_instagram_feed_delete', array( $this, 'handle_feed_delete' ) );
+	}
+
+	/**
+	 * Cached Instagram image URLs are signed and expire, so a connection that
+	 * stops refreshing eventually breaks live pages. Warn before that happens.
+	 */
+	public function maybe_warn_stale_cache(): void {
+		if ( ! current_user_can( 'manage_options' ) || ! Config::has_token() ) {
+			return;
+		}
+		$status = Feed_Store::status();
+		$last   = (int) ( $status['last_success'] ?? 0 );
+		if ( 0 === $last || time() - $last < 2 * DAY_IN_SECONDS ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-warning"><p><strong>%s</strong> %s <a href="%s">%s</a></p></div>',
+			esc_html__( 'ShootCal Social Feed:', 'shootcal-instagram-feed' ),
+			esc_html(
+				sprintf(
+					/* translators: 1: days since the last refresh. 2: last error text. */
+					__( 'The Instagram feed has not refreshed in %1$d days; its cached images will eventually expire. Last error: %2$s', 'shootcal-instagram-feed' ),
+					(int) floor( ( time() - $last ) / DAY_IN_SECONDS ),
+					'' !== (string) ( $status['last_error'] ?? '' ) ? (string) $status['last_error'] : __( 'none recorded', 'shootcal-instagram-feed' )
+				)
+			),
+			esc_url( $this->settings_url() ),
+			esc_html__( 'Open feed settings', 'shootcal-instagram-feed' )
+		);
+	}
+
+	public function handle_feed_save(): void {
+		$this->authorize_action( 'shootcal_instagram_feed_save' );
+		$feed_id = isset( $_POST['feed_id'] ) ? absint( $_POST['feed_id'] ) : 0;
+		$fields  = array();
+		foreach ( array( 'name', 'hashtag', 'exclude', 'limit', 'columns', 'mobile_limit' ) as $field ) {
+			$fields[ $field ] = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
+		}
+		$fields['follow']  = isset( $_POST['follow'] );
+		$fields['dynamic'] = isset( $_POST['dynamic'] );
+
+		$saved = Feeds::save( $feed_id, $fields );
+		$this->redirect_result( is_wp_error( $saved ) ? 'feed_invalid' : 'feed_saved' );
+	}
+
+	public function handle_feed_delete(): void {
+		$this->authorize_action( 'shootcal_instagram_feed_delete' );
+		Feeds::delete( isset( $_POST['feed_id'] ) ? absint( $_POST['feed_id'] ) : 0 );
+		$this->redirect_result( 'feed_deleted' );
 	}
 
 	public function add_page(): void {
@@ -75,10 +127,11 @@ class Settings {
 		}
 
 		$submitted_hashtag = isset( $input['default_hashtag'] ) ? trim( (string) $input['default_hashtag'] ) : '';
-		$default_hashtag   = Hashtag_Filter::normalize( $submitted_hashtag );
-		if ( '' !== $submitted_hashtag && '' === $default_hashtag ) {
+		$default_list      = Hashtag_Filter::normalize_list( $submitted_hashtag );
+		$default_hashtag   = null !== $default_list ? implode( ', ', $default_list ) : '';
+		if ( null === $default_list ) {
 			$default_hashtag = (string) $current['default_hashtag'];
-			add_settings_error( OPTION_KEY, 'hashtag-error', __( 'The default hashtag may contain only letters, numbers, or underscores, with one optional leading #.', 'shootcal-instagram-feed' ), 'error' );
+			add_settings_error( OPTION_KEY, 'hashtag-error', __( 'Default hashtags may contain only letters, numbers, or underscores, separated by commas, each with one optional leading #.', 'shootcal-instagram-feed' ), 'error' );
 		}
 
 		$output = array(
@@ -296,6 +349,12 @@ class Settings {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'ShootCal completed the Facebook step, but WordPress could not store the encrypted connection. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
 		} elseif ( 'oauth_error' === $result ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Instagram could not be connected. Your previous connection was not changed.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'feed_saved' === $result ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'The feed was saved. Copy its shortcode below into any page.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'feed_deleted' === $result ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'The feed was deleted. Remove its shortcode from any pages still using it.', 'shootcal-instagram-feed' ) . '</p></div>';
+		} elseif ( 'feed_invalid' === $result ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'The feed was not saved: it needs a name, and hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-instagram-feed' ) . '</p></div>';
 		}
 		$selection = 'oauth_select' === $result && isset( $_GET['oauth_state'] )
 			? $this->oauth_context( sanitize_text_field( wp_unslash( $_GET['oauth_state'] ) ) ) : null;
@@ -338,6 +397,104 @@ class Settings {
 					<?php submit_button( Config::has_token() ? __( 'Reconnect with Facebook', 'shootcal-instagram-feed' ) : __( 'Connect with Facebook', 'shootcal-instagram-feed' ), 'primary', 'submit', false ); ?>
 				</form>
 			<?php endif; ?>
+
+			<h2><?php esc_html_e( 'Feeds', 'shootcal-instagram-feed' ); ?></h2>
+			<p style="max-width:55em;"><?php esc_html_e( 'Create a named feed with its own hashtag filters, then paste its shortcode into any page. A post matches when its caption carries any of the listed hashtags; exclude hashtags remove posts even when they match. Editing a saved feed updates every page using its shortcode.', 'shootcal-instagram-feed' ); ?></p>
+			<?php
+			$feeds        = Feeds::all();
+			$editing_id   = isset( $_GET['edit_feed'] ) ? absint( $_GET['edit_feed'] ) : 0;
+			$editing_feed = $editing_id > 0 ? ( $feeds[ $editing_id ] ?? null ) : null;
+			if ( null === $editing_feed ) {
+				$editing_id   = 0;
+				$editing_feed = array(
+					'name'         => '',
+					'hashtag'      => '',
+					'exclude'      => '',
+					'limit'        => 5,
+					'columns'      => 5,
+					'mobile_limit' => 4,
+					'follow'       => true,
+					'dynamic'      => true,
+				);
+			}
+			?>
+			<?php if ( ! empty( $feeds ) ) : ?>
+				<table class="widefat striped" style="max-width:55em;">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Feed', 'shootcal-instagram-feed' ); ?></th>
+							<th><?php esc_html_e( 'Hashtags', 'shootcal-instagram-feed' ); ?></th>
+							<th><?php esc_html_e( 'Shortcode', 'shootcal-instagram-feed' ); ?></th>
+							<th style="width:11em;"><?php esc_html_e( 'Actions', 'shootcal-instagram-feed' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $feeds as $feed_id => $feed ) : ?>
+							<tr>
+								<td><strong><?php echo esc_html( (string) $feed['name'] ); ?></strong></td>
+								<td>
+									<?php echo esc_html( '' !== $feed['hashtag'] ? (string) $feed['hashtag'] : __( 'All posts', 'shootcal-instagram-feed' ) ); ?>
+									<?php if ( '' !== $feed['exclude'] ) : ?>
+										<br /><em><?php echo esc_html( sprintf( /* translators: %s: excluded hashtags. */ __( 'excluding %s', 'shootcal-instagram-feed' ), (string) $feed['exclude'] ) ); ?></em>
+									<?php endif; ?>
+								</td>
+								<td><code>[shootcal_instagram_feed feed="<?php echo esc_html( (string) $feed_id ); ?>"]</code></td>
+								<td>
+									<a class="button button-small" href="<?php echo esc_url( add_query_arg( 'edit_feed', $feed_id, $this->settings_url() ) . '#shootcal-feed-editor' ); ?>"><?php esc_html_e( 'Edit', 'shootcal-instagram-feed' ); ?></a>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;">
+										<input type="hidden" name="action" value="shootcal_instagram_feed_delete" />
+										<input type="hidden" name="feed_id" value="<?php echo esc_attr( (string) $feed_id ); ?>" />
+										<?php wp_nonce_field( 'shootcal_instagram_feed_delete' ); ?>
+										<button type="submit" class="button button-small" onclick="return window.confirm(<?php echo esc_attr( (string) wp_json_encode( __( 'Delete this feed? Pages using its shortcode will stop showing it.', 'shootcal-instagram-feed' ) ) ); ?>);"><?php esc_html_e( 'Delete', 'shootcal-instagram-feed' ); ?></button>
+									</form>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+
+			<h3 id="shootcal-feed-editor"><?php echo $editing_id > 0 ? esc_html( sprintf( /* translators: %s: feed name. */ __( 'Edit feed: %s', 'shootcal-instagram-feed' ), (string) $editing_feed['name'] ) ) : esc_html__( 'Add a feed', 'shootcal-instagram-feed' ); ?></h3>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="max-width:55em;">
+				<input type="hidden" name="action" value="shootcal_instagram_feed_save" />
+				<input type="hidden" name="feed_id" value="<?php echo esc_attr( (string) $editing_id ); ?>" />
+				<?php wp_nonce_field( 'shootcal_instagram_feed_save' ); ?>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="shootcal-feed-name"><?php esc_html_e( 'Feed name', 'shootcal-instagram-feed' ); ?></label></th>
+						<td><input type="text" name="name" id="shootcal-feed-name" value="<?php echo esc_attr( (string) $editing_feed['name'] ); ?>" class="regular-text" maxlength="80" required placeholder="<?php esc_attr_e( 'Wedding feed', 'shootcal-instagram-feed' ); ?>" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="shootcal-feed-hashtag"><?php esc_html_e( 'Show posts with any of these hashtags', 'shootcal-instagram-feed' ); ?></label></th>
+						<td><input type="text" name="hashtag" id="shootcal-feed-hashtag" value="<?php echo esc_attr( (string) $editing_feed['hashtag'] ); ?>" class="large-text" placeholder="#wedding, #beachwedding, #brideandgroom" /><p class="description"><?php esc_html_e( 'Comma-separated. Leave empty to show every cached post.', 'shootcal-instagram-feed' ); ?></p></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="shootcal-feed-exclude"><?php esc_html_e( 'Hide posts with any of these hashtags', 'shootcal-instagram-feed' ); ?></label></th>
+						<td><input type="text" name="exclude" id="shootcal-feed-exclude" value="<?php echo esc_attr( (string) $editing_feed['exclude'] ); ?>" class="large-text" placeholder="#wedding" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="shootcal-feed-limit"><?php esc_html_e( 'Posts to display', 'shootcal-instagram-feed' ); ?></label></th>
+						<td>
+							<input type="number" name="limit" id="shootcal-feed-limit" value="<?php echo esc_attr( (string) $editing_feed['limit'] ); ?>" min="1" max="30" class="small-text" />
+							<label style="margin-left:1em;" for="shootcal-feed-columns"><?php esc_html_e( 'Desktop columns', 'shootcal-instagram-feed' ); ?></label>
+							<input type="number" name="columns" id="shootcal-feed-columns" value="<?php echo esc_attr( (string) $editing_feed['columns'] ); ?>" min="1" max="6" class="small-text" />
+							<label style="margin-left:1em;" for="shootcal-feed-mobile-limit"><?php esc_html_e( 'Posts on phones (0 = all)', 'shootcal-instagram-feed' ); ?></label>
+							<input type="number" name="mobile_limit" id="shootcal-feed-mobile-limit" value="<?php echo esc_attr( (string) $editing_feed['mobile_limit'] ); ?>" min="0" max="30" class="small-text" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Options', 'shootcal-instagram-feed' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="follow" <?php checked( ! empty( $editing_feed['follow'] ) ); ?> /> <?php esc_html_e( 'Show a Follow on Instagram button', 'shootcal-instagram-feed' ); ?></label><br />
+							<label><input type="checkbox" name="dynamic" <?php checked( ! empty( $editing_feed['dynamic'] ) ); ?> /> <?php esc_html_e( 'Load the feed after the page (recommended: page caching never shows a stale feed, and images stay lazy-loaded)', 'shootcal-instagram-feed' ); ?></label>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button( $editing_id > 0 ? __( 'Save feed', 'shootcal-instagram-feed' ) : __( 'Add feed', 'shootcal-instagram-feed' ), 'primary', 'submit', false ); ?>
+				<?php if ( $editing_id > 0 ) : ?>
+					<a class="button" style="margin-left:8px;" href="<?php echo esc_url( $this->settings_url() ); ?>"><?php esc_html_e( 'Cancel', 'shootcal-instagram-feed' ); ?></a>
+				<?php endif; ?>
+			</form>
 
 			<details style="max-width:55em;margin-top:1.5em;">
 				<summary><strong><?php esc_html_e( 'Advanced: enter a token manually', 'shootcal-instagram-feed' ); ?></strong></summary>
@@ -386,8 +543,8 @@ class Settings {
 			</details>
 
 			<h2><?php esc_html_e( 'Refresh and test', 'shootcal-instagram-feed' ); ?></h2>
-			<p><code>[shootcal_instagram_feed]</code></p>
-			<p><code>[shootcal_instagram_feed hashtag="weddings" limit="9" columns="3"]</code></p>
+			<p><code>[shootcal_instagram_feed feed="1"]</code></p>
+			<p><code>[shootcal_instagram_feed hashtag="wedding, beachwedding" exclude="familyportraits" limit="9" columns="3"]</code></p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px;">
 				<input type="hidden" name="action" value="shootcal_instagram_refresh" />
 				<?php wp_nonce_field( 'shootcal_instagram_refresh' ); ?>

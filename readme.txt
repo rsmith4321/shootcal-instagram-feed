@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.2.2
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,7 +18,8 @@ Features:
 
 * Responsive image grid with no front-end JavaScript.
 * Images, video thumbnails, Reels, and carousel cover images.
-* Exact, case-insensitive caption hashtag filtering.
+* Exact, case-insensitive caption hashtag filtering — a single tag, or any-of lists with optional exclusions.
+* Saved feeds: name a filter set once in Settings, paste `[shootcal_instagram_feed feed="1"]` anywhere, and later edits apply everywhere.
 * Shortcode-specific hashtags and display limits.
 * Optional five-desktop/four-mobile layout and account follow button.
 * Optional post-load refresh that bypasses full-page caches while reading only WordPress's saved feed.
@@ -39,6 +40,14 @@ This first release uses the Instagram API with Facebook Login, a numeric Instagr
 To show only posts whose captions include a particular hashtag:
 
 `[shootcal_instagram_feed hashtag="weddings"]`
+
+Comma-separated lists match any of the tags, and `exclude` removes posts even when they match:
+
+`[shootcal_instagram_feed hashtag="familyportraits, family" exclude="wedding"]`
+
+Prefer managing filters without editing pages? Create a saved feed under Settings > ShootCal Social Feed and embed it by id:
+
+`[shootcal_instagram_feed feed="1"]`
 
 The leading `#` is optional. Additional examples:
 
@@ -86,6 +95,16 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.3.1 =
+* Fix images never loading after the deferred AJAX refresh: Chromium does not natively lazy-load images parsed via innerHTML, so the plugin now promotes them itself once the feed nears the viewport.
+
+= 0.3.0 =
+* Add saved feeds: create named hashtag filter sets in Settings and embed them with `[shootcal_instagram_feed feed="N"]`; editing a saved feed updates every page using it, and dynamic embeds pick up edits through full-page caches.
+* Support comma-separated any-of hashtag lists and a new `exclude` attribute in the shortcode, the REST route, and the default-hashtag setting.
+* Hide empty-feed and configuration messages from visitors; administrators still see them.
+* Use the first carousel child with a usable image as the cover instead of only the first child.
+* Warn administrators on every dashboard page when the feed has not refreshed for two days, before Meta's signed image URLs expire.
 
 = 0.2.2 =
 * Allow validated OAuth and disconnect writes through the settings sanitizer, with exact database read-back verification.

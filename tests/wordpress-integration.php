@@ -13,10 +13,12 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 use ShootCalInstagramFeed\Api_Client;
 use ShootCalInstagramFeed\Config;
 use ShootCalInstagramFeed\Feed_Store;
+use ShootCalInstagramFeed\Feeds;
 use ShootCalInstagramFeed\Rest_Controller;
 use ShootCalInstagramFeed\Settings;
 use ShootCalInstagramFeed\Shortcode;
 use const ShootCalInstagramFeed\CACHE_KEY;
+use const ShootCalInstagramFeed\FEEDS_KEY;
 use const ShootCalInstagramFeed\LOCK_KEY;
 use const ShootCalInstagramFeed\OAUTH_KEY;
 use const ShootCalInstagramFeed\OPTION_KEY;
@@ -36,6 +38,7 @@ $original_cache   = get_option( CACHE_KEY, false );
 $original_status  = get_option( STATUS_KEY, false );
 $original_lock    = get_option( LOCK_KEY, false );
 $original_oauth   = get_option( OAUTH_KEY, false );
+$original_feeds   = get_option( FEEDS_KEY, false );
 $account_id       = '17841400000000001';
 $expected_token   = 'integration-test-token';
 $mode             = 'success';
@@ -292,6 +295,81 @@ try {
 	if ( 'no-store' !== ( $headers['Cache-Control'] ?? '' ) ) {
 		throw new RuntimeException( 'The REST response did not prevent stale account HTML caching.' );
 	}
+	delete_option( FEEDS_KEY );
+	if ( ! is_wp_error( Feeds::save( 0, array( 'name' => '', 'hashtag' => 'wedding' ) ) ) ) {
+		throw new RuntimeException( 'A nameless feed preset was accepted.' );
+	}
+	if ( ! is_wp_error( Feeds::save( 0, array( 'name' => 'Bad', 'hashtag' => 'not-valid!' ) ) ) ) {
+		throw new RuntimeException( 'An invalid preset hashtag list was accepted.' );
+	}
+	$preset_id = Feeds::save(
+		0,
+		array(
+			'name'    => 'Weddings',
+			'hashtag' => '#Wedding, #WeddingPhotography',
+			'exclude' => '',
+			'limit'   => 5,
+			'columns' => 5,
+			'follow'  => true,
+			'dynamic' => true,
+		)
+	);
+	if ( is_wp_error( $preset_id ) || 1 !== $preset_id ) {
+		throw new RuntimeException( 'Saving a valid feed preset failed.' );
+	}
+	$preset = Feeds::get( $preset_id );
+	if ( null === $preset || 'wedding, weddingphotography' !== $preset['hashtag'] ) {
+		throw new RuntimeException( 'The stored preset did not normalize its hashtag list.' );
+	}
+
+	$preset_rendered = ( new Shortcode() )->render( array( 'feed' => (string) $preset_id, 'dynamic' => 'false' ) );
+	if ( 3 !== substr_count( $preset_rendered, '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'The preset shortcode did not render its any-of hashtag matches.' );
+	}
+	$override_rendered = ( new Shortcode() )->render( array( 'feed' => (string) $preset_id, 'limit' => 1, 'dynamic' => 'false' ) );
+	if ( 1 !== substr_count( $override_rendered, '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'An explicit shortcode attribute did not override the preset.' );
+	}
+
+	$excluded_id = Feeds::save( 0, array( 'name' => 'No photography tag', 'hashtag' => 'wedding, weddingphotography', 'exclude' => 'weddingphotography', 'limit' => 9 ) );
+	if ( is_wp_error( $excluded_id ) ) {
+		throw new RuntimeException( 'Saving an exclude-list preset failed.' );
+	}
+	$excluded_rendered = ( new Shortcode() )->render( array( 'feed' => (string) $excluded_id, 'dynamic' => 'false' ) );
+	if ( 2 !== substr_count( $excluded_rendered, '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'The preset exclude list did not drop matching posts.' );
+	}
+
+	$preset_dynamic = ( new Shortcode() )->render( array( 'feed' => (string) $preset_id ) );
+	$loader_tag     = substr( $preset_dynamic, 0, (int) strpos( $preset_dynamic, '>' ) );
+	if ( ! str_contains( $loader_tag, 'shootcal-instagram-feed-loader' ) || ! str_contains( $loader_tag, 'data-feed="1"' ) ) {
+		throw new RuntimeException( 'The preset dynamic loader did not carry its feed id.' );
+	}
+	if ( str_contains( $loader_tag, 'data-hashtag=' ) ) {
+		throw new RuntimeException( 'The preset dynamic loader baked resolved hashtags into cached markup.' );
+	}
+
+	$preset_request = new WP_REST_Request( 'GET', '/' . Rest_Controller::ROUTE );
+	$preset_request->set_query_params( array( 'feed' => (string) $preset_id ) );
+	$preset_payload = ( new Rest_Controller() )->get_feed( $preset_request )->get_data();
+	if ( 3 !== substr_count( (string) ( $preset_payload['html'] ?? '' ), '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'The REST route did not resolve a preset feed.' );
+	}
+	$preset_request = new WP_REST_Request( 'GET', '/' . Rest_Controller::ROUTE );
+	$preset_request->set_query_params( array( 'feed' => (string) $preset_id, 'limit' => '1' ) );
+	$preset_payload = ( new Rest_Controller() )->get_feed( $preset_request )->get_data();
+	if ( 1 !== substr_count( (string) ( $preset_payload['html'] ?? '' ), '<a class="shootcal-instagram-feed__item' ) ) {
+		throw new RuntimeException( 'A sent REST parameter did not override the preset.' );
+	}
+
+	if ( '' !== ( new Shortcode() )->render( array( 'feed' => '999', 'dynamic' => 'false' ) ) ) {
+		throw new RuntimeException( 'A missing preset leaked output to visitors.' );
+	}
+	Feeds::delete( (int) $excluded_id );
+	if ( null !== Feeds::get( (int) $excluded_id ) ) {
+		throw new RuntimeException( 'Deleting a feed preset failed.' );
+	}
+
 	$mode       = 'outage';
 	$result     = $store->refresh();
 	if ( ! is_wp_error( $result ) || $good_cache !== Feed_Store::cache() ) {
@@ -377,4 +455,5 @@ try {
 	false === $original_status ? delete_option( STATUS_KEY ) : update_option( STATUS_KEY, $original_status, false );
 	false === $original_lock ? delete_option( LOCK_KEY ) : update_option( LOCK_KEY, $original_lock, false );
 	false === $original_oauth ? delete_option( OAUTH_KEY ) : update_option( OAUTH_KEY, $original_oauth, false );
+	false === $original_feeds ? delete_option( FEEDS_KEY ) : update_option( FEEDS_KEY, $original_feeds, false );
 }
