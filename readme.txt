@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -97,6 +97,9 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.3.3 =
+* Drop the glass chip behind the carousel icon: the double-photo mark now sits directly on the image in a dark shade with a soft light halo, deepening slightly on hover.
 
 = 0.3.2 =
 * Lazy-load the entire dynamic feed: nothing is fetched and no feed image loads until the feed nears the viewport, then the fresh markup and its images load together. Script-injected images are invisible to native and plugin lazy-loaders, so the script now owns image timing end to end; pages whose visitors never reach the feed no longer call the REST route at all.
