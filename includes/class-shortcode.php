@@ -195,7 +195,7 @@ class Shortcode {
 				}
 				?>
 				<a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
-					<img class="shootcal-instagram-feed__image" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-instagram-feed' ); ?></span>
 					<?php elseif ( 'CAROUSEL_ALBUM' === $media_type ) : ?>

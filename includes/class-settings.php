@@ -547,6 +547,7 @@ class Settings {
 			<h2><?php esc_html_e( 'Refresh and test', 'shootcal-instagram-feed' ); ?></h2>
 			<p><code>[shootcal_instagram_feed feed="1"]</code></p>
 			<p><code>[shootcal_instagram_feed hashtag="wedding, beachwedding" exclude="familyportraits" limit="9" columns="3"]</code></p>
+			<p style="max-width:55em;" class="description"><?php esc_html_e( 'Using a performance plugin? Perfmatters and WP Rocket are handled automatically (clear their CSS cache once after updating). For other optimizers, exclude the stylesheet path /shootcal-instagram-feed/ from unused-CSS removal and leave images with the skip-lazy class alone.', 'shootcal-instagram-feed' ); ?></p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px;">
 				<input type="hidden" name="action" value="shootcal_instagram_refresh" />
 				<?php wp_nonce_field( 'shootcal_instagram_refresh' ); ?>

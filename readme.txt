@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.3
+Stable tag: 0.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,7 +18,8 @@ Photographer? [ShootCal](https://www.shootcal.com/) also handles your scheduling
 
 Features:
 
-* Responsive image grid with no front-end JavaScript.
+* Loads only where used: the stylesheet and the single small script enqueue solely on pages that actually render a feed — nothing is added site-wide.
+* Responsive image grid; no jQuery and no heavy libraries — static embeds ship zero JavaScript, dynamic embeds one ~4 KB deferred script.
 * Images, video thumbnails, Reels, and carousel cover images.
 * Exact, case-insensitive caption hashtag filtering — a single tag, or any-of lists with optional exclusions.
 * Saved feeds: name a filter set once in Settings, paste `[shootcal_instagram_feed feed="1"]` anywhere, and later edits apply everywhere.
@@ -67,6 +68,16 @@ If the surrounding page is held in a full-page cache, add `dynamic="true"`. The 
 
 == Frequently Asked Questions ==
 
+= I use a performance plugin (Perfmatters, WP Rocket, LiteSpeed Cache, Autoptimize) and the feed looks unstyled or images misbehave. =
+
+ShootCal Social Feed registers its own exclusions with Perfmatters and WP Rocket automatically: its stylesheet is excluded from Remove Unused CSS, and its images carry the standard `skip-lazy` marker that most lazy-load plugins honor. After updating this plugin, clear your optimizer's CSS cache once so it regenerates.
+
+For other optimizers, exclude these manually:
+
+* Unused/critical CSS removal: exclude the stylesheet path `/shootcal-instagram-feed/` (or safelist selectors beginning with `.shootcal-instagram-feed`).
+* Lazy loading: exclude images with the `skip-lazy` class if your tool does not already honor it. The plugin times its own image loading.
+* JavaScript delay/defer tools: `feed.js` is small and already deferred; if your tool delays scripts until user interaction, exclude `shootcal-instagram-feed/assets/feed.js` so the feed can load on scroll.
+
 = Does filtering call Instagram's public hashtag search API? =
 
 No. Filtering is performed locally against captions from the connected account's own recent posts. This keeps permissions and API usage small and predictable.
@@ -97,6 +108,10 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.3.4 =
+* Register exclusions with CSS optimizers automatically: the stylesheet is excluded from Perfmatters and WP Rocket unused-CSS removal, feed images carry the standard skip-lazy marker for lazy-load plugins, and the FAQ documents manual exclusions for other tools.
+* Document that assets load only on pages rendering a feed; nothing is enqueued site-wide.
 
 = 0.3.3 =
 * Drop the glass chip behind the carousel icon: the double-photo mark now sits directly on the image in a dark shade with a soft light halo, deepening slightly on hover.
