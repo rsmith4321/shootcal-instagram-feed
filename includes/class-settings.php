@@ -87,12 +87,14 @@ class Settings {
 	}
 
 	public function add_page(): void {
-		add_options_page(
+		add_menu_page(
 			__( 'ShootCal Social Feed', 'shootcal-instagram-feed' ),
-			__( 'ShootCal Social Feed', 'shootcal-instagram-feed' ),
+			__( 'Instagram Feed', 'shootcal-instagram-feed' ),
 			'manage_options',
 			self::PAGE_SLUG,
-			array( $this, 'render_page' )
+			array( $this, 'render_page' ),
+			'dashicons-instagram',
+			58
 		);
 	}
 
@@ -574,7 +576,7 @@ class Settings {
 	}
 
 	private function settings_url(): string {
-		return admin_url( 'options-general.php?page=' . self::PAGE_SLUG );
+		return admin_url( 'admin.php?page=' . self::PAGE_SLUG );
 	}
 
 	/** @return array<string,mixed>|null */

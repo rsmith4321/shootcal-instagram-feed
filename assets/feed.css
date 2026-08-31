@@ -42,6 +42,7 @@
 
 .shootcal-instagram-feed__type {
 	position: absolute;
+	z-index: 1;
 	top: 8px;
 	right: 8px;
 	padding: 3px 6px;
@@ -50,6 +51,31 @@
 	color: #fff;
 	font: 600 11px/1.2 system-ui, sans-serif;
 	letter-spacing: 0.02em;
+}
+
+.shootcal-instagram-feed__type--carousel {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	background: rgb(255 255 255 / 26%);
+	-webkit-backdrop-filter: blur(6px);
+	backdrop-filter: blur(6px);
+	filter: drop-shadow(0 1px 3px rgb(0 0 0 / 30%));
+	transition: background 180ms ease;
+}
+
+.shootcal-instagram-feed__item:hover .shootcal-instagram-feed__type--carousel,
+.shootcal-instagram-feed__item:focus-visible .shootcal-instagram-feed__type--carousel {
+	background: rgb(30 30 30 / 32%);
+}
+
+.shootcal-instagram-feed__type--carousel svg {
+	display: block;
+	width: 14px;
+	height: 14px;
 }
 
 .shootcal-instagram-feed__empty {

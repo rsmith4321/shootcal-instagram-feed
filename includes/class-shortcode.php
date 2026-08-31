@@ -199,7 +199,7 @@ class Shortcode {
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-instagram-feed' ); ?></span>
 					<?php elseif ( 'CAROUSEL_ALBUM' === $media_type ) : ?>
-						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Carousel', 'shootcal-instagram-feed' ); ?></span>
+						<span class="shootcal-instagram-feed__type shootcal-instagram-feed__type--carousel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M15.5 4.5H7A2.5 2.5 0 0 0 4.5 7v8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
 					<?php endif; ?>
 				</a>
 			<?php endforeach; ?>

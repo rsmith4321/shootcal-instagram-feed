@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.1
+Stable tag: 0.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,9 @@ A lightweight, cached Instagram feed for professional accounts with local hashta
 
 == Description ==
 
-ShootCal Social Feed displays recent posts from one connected Instagram Business or Creator account. It fetches media on a schedule, stores the last successful response in WordPress, and renders the cached posts without visitor-triggered Instagram API requests.
+ShootCal Social Feed brings the same slick, fast-loading Instagram feed from [ShootCal's website builder](https://www.shootcal.com/) to WordPress. It displays recent posts from one connected Instagram Business or Creator account, fetches media on a schedule, stores the last successful response in WordPress, and renders the cached posts without visitor-triggered Instagram API requests — the whole feed, script and images together, loads only when a visitor scrolls near it.
+
+Photographer? [ShootCal](https://www.shootcal.com/) also handles your scheduling, calendar, booking, contracts, invoices, client galleries, and print store — this feed is one small piece of it.
 
 Features:
 
@@ -95,6 +97,11 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.3.2 =
+* Lazy-load the entire dynamic feed: nothing is fetched and no feed image loads until the feed nears the viewport, then the fresh markup and its images load together. Script-injected images are invisible to native and plugin lazy-loaders, so the script now owns image timing end to end; pages whose visitors never reach the feed no longer call the REST route at all.
+* Replace the Carousel text chip with a light glass double-photo icon that stays visible and darkens slightly on hover; badges can no longer slip under the zoomed hover image.
+* Move the plugin into its own top-level "Instagram Feed" admin menu item instead of a Settings submenu.
 
 = 0.3.1 =
 * Fix images never loading after the deferred AJAX refresh: Chromium does not natively lazy-load images parsed via innerHTML, so the plugin now promotes them itself once the feed nears the viewport.

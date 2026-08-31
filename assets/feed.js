@@ -1,13 +1,20 @@
 ( function () {
 	'use strict';
 
-	let stylesheetPromise;
+	// The whole feed is lazy: nothing is fetched and no image loads until the
+	// feed container nears the viewport. Instagram images injected by script
+	// are invisible to native and plugin lazy-loaders (they scan markup, not
+	// later DOM insertions), so the script controls image timing itself and
+	// injects everything eagerly at the moment the feed is about to be seen.
+	var NEAR_VIEWPORT = '600px 0px';
+
+	var stylesheetPromise;
 
 	function waitForStylesheet( link, loader ) {
 		return new Promise( function ( resolve ) {
-			let settled = false;
-			let timeout;
-			const finish = function ( loaded ) {
+			var settled = false;
+			var timeout;
+			var finish = function ( loaded ) {
 				if ( settled ) {
 					return;
 				}
@@ -40,7 +47,7 @@
 			return stylesheetPromise;
 		}
 
-		const existing = document.querySelector( 'link[data-shootcal-instagram-feed-runtime], link[href*="/shootcal-instagram-feed/assets/feed.css"]' );
+		var existing = document.querySelector( 'link[data-shootcal-instagram-feed-runtime], link[href*="/shootcal-instagram-feed/assets/feed.css"]' );
 		if (
 			existing &&
 			existing.relList.contains( 'stylesheet' ) &&
@@ -55,14 +62,14 @@
 			return Promise.resolve();
 		}
 
-		let stylesheet;
+		var stylesheet;
 		try {
 			stylesheet = new URL( loader.dataset.stylesheet, window.location.origin );
 		} catch ( error ) {
 			return Promise.resolve();
 		}
 
-		const link = document.createElement( 'link' );
+		var link = document.createElement( 'link' );
 		link.rel = 'stylesheet';
 		link.href = stylesheet.toString();
 		link.dataset.shootcalInstagramFeedRuntime = 'true';
@@ -72,35 +79,10 @@
 		return stylesheetPromise;
 	}
 
-	function activateLazyImages( loader ) {
-		// Chromium never natively lazy-loads images parsed through an
-		// innerHTML assignment, so images injected after the AJAX refresh
-		// would stay unloaded forever. Keep the lazy behavior ourselves:
-		// promote them to eager only once the feed nears the viewport.
-		var promote = function () {
-			loader.querySelectorAll( 'img[loading="lazy"]' ).forEach( function ( image ) {
-				image.loading = 'eager';
-			} );
-		};
-
-		if ( ! ( 'IntersectionObserver' in window ) ) {
-			promote();
-			return;
-		}
-
-		var observer = new IntersectionObserver(
-			function ( entries ) {
-				var intersecting = entries.some( function ( entry ) {
-					return entry.isIntersecting;
-				} );
-				if ( intersecting ) {
-					observer.disconnect();
-					promote();
-				}
-			},
-			{ rootMargin: '600px 0px' }
-		);
-		observer.observe( loader );
+	function loadImagesNow( loader ) {
+		loader.querySelectorAll( 'img[loading="lazy"]' ).forEach( function ( image ) {
+			image.loading = 'eager';
+		} );
 	}
 
 	function loadFeed( loader ) {
@@ -110,7 +92,12 @@
 
 		loader.dataset.loading = 'true';
 
-		let endpoint;
+		// The server-rendered fallback should start painting while the fresh
+		// markup is fetched; its images are usually identical, so they come
+		// straight from HTTP cache after the swap.
+		loadImagesNow( loader );
+
+		var endpoint;
 		try {
 			endpoint = new URL( loader.dataset.endpoint, window.location.origin );
 		} catch ( error ) {
@@ -119,9 +106,9 @@
 		}
 
 		[ 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobileLimit', 'follow', 'class' ].forEach( function ( key ) {
-			const value = loader.dataset[ key ];
+			var value = loader.dataset[ key ];
 			if ( undefined !== value && '' !== value ) {
-				const parameter = 'mobileLimit' === key ? 'mobile_limit' : key;
+				var parameter = 'mobileLimit' === key ? 'mobile_limit' : key;
 				endpoint.searchParams.set( parameter, value );
 			}
 		} );
@@ -145,7 +132,7 @@
 				if ( payload && 'string' === typeof payload.html && '' !== payload.html.trim() ) {
 					loader.innerHTML = payload.html;
 					loader.dataset.loaded = 'true';
-					activateLazyImages( loader );
+					loadImagesNow( loader );
 				}
 			} )
 			.catch( function () {
@@ -156,8 +143,35 @@
 			} );
 	}
 
+	function observeLoaders( loaders ) {
+		if ( ! loaders.length ) {
+			return;
+		}
+
+		if ( ! ( 'IntersectionObserver' in window ) ) {
+			loaders.forEach( loadFeed );
+			return;
+		}
+
+		var observer = new IntersectionObserver(
+			function ( entries ) {
+				entries.forEach( function ( entry ) {
+					if ( entry.isIntersecting ) {
+						observer.unobserve( entry.target );
+						loadFeed( entry.target );
+					}
+				} );
+			},
+			{ rootMargin: NEAR_VIEWPORT }
+		);
+
+		loaders.forEach( function ( loader ) {
+			observer.observe( loader );
+		} );
+	}
+
 	function initialize() {
-		document.querySelectorAll( '.shootcal-instagram-feed-loader' ).forEach( loadFeed );
+		observeLoaders( Array.prototype.slice.call( document.querySelectorAll( '.shootcal-instagram-feed-loader' ) ) );
 	}
 
 	if ( 'loading' === document.readyState ) {
@@ -165,4 +179,24 @@
 	} else {
 		initialize();
 	}
+
+	// A back/forward-cache restore freezes dataset state and drops observer
+	// targets: a loader caught mid-fetch would otherwise be stranded on the
+	// static fallback forever. Reset unfinished loaders and observe them again.
+	window.addEventListener( 'pageshow', function ( event ) {
+		if ( ! event.persisted ) {
+			return;
+		}
+		var unfinished = Array.prototype.filter.call(
+			document.querySelectorAll( '.shootcal-instagram-feed-loader' ),
+			function ( loader ) {
+				return loader.dataset.loaded !== 'true';
+			}
+		);
+		unfinished.forEach( function ( loader ) {
+			delete loader.dataset.loading;
+			delete loader.dataset.failed;
+		} );
+		observeLoaders( unfinished );
+	} );
 }() );
