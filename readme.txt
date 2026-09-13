@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.4
+Stable tag: 0.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,7 +36,7 @@ This first release uses the Instagram API with Facebook Login, a numeric Instagr
 
 1. Upload the `shootcal-instagram-feed` directory to `/wp-content/plugins/`.
 2. Activate ShootCal Social Feed.
-3. Open Settings > ShootCal Social Feed.
+3. Open ShootCal > Social Feed.
 4. Choose Connect with Facebook and select the linked professional Instagram account.
 5. Add `[shootcal_instagram_feed]` to a Shortcode block.
 
@@ -48,7 +48,7 @@ Comma-separated lists match any of the tags, and `exclude` removes posts even wh
 
 `[shootcal_instagram_feed hashtag="familyportraits, family" exclude="wedding"]`
 
-Prefer managing filters without editing pages? Create a saved feed under Settings > ShootCal Social Feed and embed it by id:
+Prefer managing filters without editing pages? Create a saved feed under ShootCal > Social Feed and embed it by id:
 
 `[shootcal_instagram_feed feed="1"]`
 
@@ -92,7 +92,7 @@ No. Front-end rendering reads only the WordPress cache.
 
 = How do I delete the Instagram connection data? =
 
-Open Settings > ShootCal Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
+Open ShootCal > Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
 
 == External services ==
 
@@ -108,6 +108,10 @@ Use of these services is subject to Meta's terms and privacy policy:
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
 == Changelog ==
+
+= 0.3.5 =
+* Group Social Feed and Calendar under one ShootCal sidebar menu, with an overview of the available plugins.
+* Keep the existing Social Feed settings address and saved connection unchanged. Either ShootCal plugin can provide the shared menu independently.
 
 = 0.3.4 =
 * Register exclusions with CSS optimizers automatically: the stylesheet is excluded from Perfmatters and WP Rocket unused-CSS removal, feed images carry the standard skip-lazy marker for lazy-load plugins, and the FAQ documents manual exclusions for other tools.

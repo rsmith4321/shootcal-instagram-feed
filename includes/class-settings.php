@@ -87,14 +87,13 @@ class Settings {
 	}
 
 	public function add_page(): void {
-		add_menu_page(
+		add_submenu_page(
+			'shootcal',
 			__( 'ShootCal Social Feed', 'shootcal-instagram-feed' ),
-			__( 'Instagram Feed', 'shootcal-instagram-feed' ),
+			Admin_Menu::item_label( __( 'Social Feed', 'shootcal-instagram-feed' ), 'dashicons-instagram' ),
 			'manage_options',
 			self::PAGE_SLUG,
-			array( $this, 'render_page' ),
-			'dashicons-instagram',
-			58
+			array( $this, 'render_page' )
 		);
 	}
 

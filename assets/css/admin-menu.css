@@ -1,0 +1,26 @@
+#toplevel_page_shootcal .wp-menu-image img {
+	width: 20px;
+	height: 20px;
+	padding-top: 7px;
+	opacity: 1;
+}
+
+#toplevel_page_shootcal .wp-submenu .shootcal-apps-menu-icon {
+	width: 18px;
+	height: 20px;
+	margin-inline-end: 6px;
+	font-size: 16px;
+	line-height: 20px;
+	vertical-align: middle;
+}
+
+.shootcal-apps-overview__heading {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.shootcal-apps-overview__heading img {
+	width: 32px;
+	height: 32px;
+}
