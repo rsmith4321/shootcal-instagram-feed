@@ -10,6 +10,8 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 	exit( 1 );
 }
 
+require_once __DIR__ . '/restore-options.php';
+
 use ShootCalInstagramFeed\Api_Client;
 use ShootCalInstagramFeed\Config;
 use ShootCalInstagramFeed\Feed_Store;
@@ -450,10 +452,12 @@ try {
 } finally {
 	remove_filter( 'pre_http_request', $http_mock, 10 );
 
-	false === $original_options ? delete_option( OPTION_KEY ) : update_option( OPTION_KEY, $original_options, false );
-	false === $original_cache ? delete_option( CACHE_KEY ) : update_option( CACHE_KEY, $original_cache, false );
-	false === $original_status ? delete_option( STATUS_KEY ) : update_option( STATUS_KEY, $original_status, false );
-	false === $original_lock ? delete_option( LOCK_KEY ) : update_option( LOCK_KEY, $original_lock, false );
-	false === $original_oauth ? delete_option( OAUTH_KEY ) : update_option( OAUTH_KEY, $original_oauth, false );
-	false === $original_feeds ? delete_option( FEEDS_KEY ) : update_option( FEEDS_KEY, $original_feeds, false );
+	shootcal_instagram_restore_test_options( array(
+		OPTION_KEY => $original_options,
+		CACHE_KEY => $original_cache,
+		STATUS_KEY => $original_status,
+		LOCK_KEY => $original_lock,
+		OAUTH_KEY => $original_oauth,
+		FEEDS_KEY => $original_feeds,
+	) );
 }
