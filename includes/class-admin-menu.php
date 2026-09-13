@@ -57,7 +57,7 @@ class Admin_Menu {
 		);
 		if ( isset( $installed['natural-photo-slider/natural-photo-slider.php'] ) ) {
 			$plugins['natural-photo-slider'] = array(
-				'name' => __( 'Natural Photo Slider', 'shootcal-instagram-feed' ),
+				'name' => __( 'Photo Slider', 'shootcal-instagram-feed' ),
 				'description' => __( 'Create lightweight photo sliders from your WordPress Media Library.', 'shootcal-instagram-feed' ),
 			);
 		}
