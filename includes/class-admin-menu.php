@@ -25,7 +25,7 @@ class Admin_Menu {
 		if ( isset( $admin_page_hooks['shootcal'] ) ) {
 			return;
 		}
-		add_menu_page( 'ShootCal Apps', 'ShootCal Apps', 'manage_options', 'shootcal', array( $this, 'render_page' ), PLUGIN_URL . 'assets/img/shootcal-logo.svg', 58 );
+		add_menu_page( 'ShootCal Apps', 'ShootCal Apps', 'manage_options', 'shootcal', array( $this, 'render_page' ), PLUGIN_URL . 'assets/img/shootcal-logo.svg', 81 );
 		add_submenu_page( 'shootcal', 'ShootCal Apps', self::item_label( __( 'Overview', 'shootcal-instagram-feed' ), 'dashicons-admin-home' ), 'manage_options', 'shootcal', array( $this, 'render_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
@@ -55,6 +55,12 @@ class Admin_Menu {
 				'description' => __( 'Display your Instagram photos with saved feeds and hashtag filters.', 'shootcal-instagram-feed' ),
 			),
 		);
+		if ( isset( $installed['natural-photo-slider/natural-photo-slider.php'] ) ) {
+			$plugins['natural-photo-slider'] = array(
+				'name' => __( 'Natural Photo Slider', 'shootcal-instagram-feed' ),
+				'description' => __( 'Create lightweight photo sliders from your WordPress Media Library.', 'shootcal-instagram-feed' ),
+			);
+		}
 		?>
 		<div class="wrap shootcal-apps-overview">
 			<h1 class="shootcal-apps-overview__heading"><img src="<?php echo esc_url( PLUGIN_URL . 'assets/img/shootcal-logo.svg' ); ?>" alt="" width="32" height="32" />ShootCal Apps</h1>
