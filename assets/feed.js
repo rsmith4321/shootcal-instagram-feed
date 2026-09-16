@@ -47,7 +47,7 @@
 			return stylesheetPromise;
 		}
 
-		var existing = document.querySelector( 'link[data-shootcal-instagram-feed-runtime], link[href*="/shootcal-instagram-feed/assets/feed.css"]' );
+		var existing = document.querySelector( 'link[data-shootcal-instagram-feed-runtime], link[href*="/shootcal-social-feed/assets/feed.css"], link[href*="/shootcal-instagram-feed/assets/feed.css"]' );
 		if (
 			existing &&
 			existing.relList.contains( 'stylesheet' ) &&

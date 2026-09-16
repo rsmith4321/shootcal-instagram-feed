@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.7
+Stable tag: 0.3.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,31 +12,31 @@ A lightweight, cached Instagram feed for professional accounts with local hashta
 
 == Description ==
 
-ShootCal Social Feed brings the same slick, fast-loading Instagram feed from [ShootCal's website builder](https://www.shootcal.com/) to WordPress. It displays recent posts from one connected Instagram Business or Creator account, fetches media on a schedule, stores the last successful response in WordPress, and renders the cached posts without visitor-triggered Instagram API requests — the whole feed, script and images together, loads only when a visitor scrolls near it.
+ShootCal Social Feed displays recent posts from one connected Instagram Business or Creator account on your WordPress website. Connect with Facebook, choose your linked account, and add a shortcode. The plugin refreshes posts on a schedule and serves visitors the last successful WordPress cache without visitor-triggered Instagram API requests.
 
-Photographer? [ShootCal](https://www.shootcal.com/) also handles your scheduling, calendar, booking, contracts, invoices, client galleries, and print store — this feed is one small piece of it.
+[ShootCal](https://www.shootcal.com/) also provides website building, scheduling, booking, contracts, invoices, client galleries, and a print store for photographers.
 
 Features:
 
-* Loads only where used: the stylesheet and the single small script enqueue solely on pages that actually render a feed — nothing is added site-wide.
-* Responsive image grid; no jQuery and no heavy libraries — static embeds ship zero JavaScript, dynamic embeds one ~4 KB deferred script.
+* Feed assets load only on pages containing a feed.
+* Responsive image grid with no jQuery or heavy libraries. Static embeds need no JavaScript; dynamic embeds use one small deferred script.
 * Images, video thumbnails, Reels, and carousel cover images.
-* Exact, case-insensitive caption hashtag filtering — a single tag, or any-of lists with optional exclusions.
-* Saved feeds: name a filter set once in Settings, paste `[shootcal_instagram_feed feed="1"]` anywhere, and later edits apply everywhere.
+* Exact, case-insensitive caption hashtag filtering with a single tag, any-of lists, and optional exclusions.
+* Saved feeds: name a filter set once in ShootCal Apps > Social Feed, paste `[shootcal_instagram_feed feed="1"]` anywhere, and later edits apply everywhere.
 * Shortcode-specific hashtags and display limits.
 * Optional five-desktop/four-mobile layout and account follow button.
 * Optional post-load refresh that bypasses full-page caches while reading only WordPress's saved feed.
 * Scheduled cache refresh with a last-known-good fallback.
 * One-click Facebook authorization through ShootCal, plus manual-token fallback.
-* Manual refresh and connection status in WordPress Settings.
+* Manual refresh and connection status in ShootCal Apps > Social Feed.
 
-This first release uses the Instagram API with Facebook Login, a numeric Instagram business account ID, and a long-lived Page access token created for your Meta app. It does not scrape Instagram and it cannot read Personal accounts.
+Requirements: a WordPress site using HTTPS and an Instagram Business or Creator account linked to a Facebook Page that you can manage. The Connect with Facebook flow uses ShootCal's Meta app, so you do not need to create your own developer app. Advanced users can enter their own numeric Instagram account ID and Page access token instead. The plugin uses the official Instagram API with Facebook Login. It does not scrape Instagram or support Personal accounts.
 
 == Installation ==
 
-1. Upload the `shootcal-instagram-feed` directory to `/wp-content/plugins/`.
+1. Upload the `shootcal-social-feed` directory to `/wp-content/plugins/`.
 2. Activate ShootCal Social Feed.
-3. Open ShootCal > Social Feed.
+3. Open ShootCal Apps > Social Feed.
 4. Choose Connect with Facebook and select the linked professional Instagram account.
 5. Add `[shootcal_instagram_feed]` to a Shortcode block.
 
@@ -48,7 +48,7 @@ Comma-separated lists match any of the tags, and `exclude` removes posts even wh
 
 `[shootcal_instagram_feed hashtag="familyportraits, family" exclude="wedding"]`
 
-Prefer managing filters without editing pages? Create a saved feed under ShootCal > Social Feed and embed it by id:
+Prefer managing filters without editing pages? Create a saved feed under ShootCal Apps > Social Feed and embed it by id:
 
 `[shootcal_instagram_feed feed="1"]`
 
@@ -74,9 +74,9 @@ ShootCal Social Feed registers its own exclusions with Perfmatters and WP Rocket
 
 For other optimizers, exclude these manually:
 
-* Unused/critical CSS removal: exclude the stylesheet path `/shootcal-instagram-feed/` (or safelist selectors beginning with `.shootcal-instagram-feed`).
+* Unused/critical CSS removal: exclude the stylesheet path `/shootcal-social-feed/` (or safelist selectors beginning with `.shootcal-instagram-feed`).
 * Lazy loading: exclude images with the `skip-lazy` class if your tool does not already honor it. The plugin times its own image loading.
-* JavaScript delay/defer tools: `feed.js` is small and already deferred; if your tool delays scripts until user interaction, exclude `shootcal-instagram-feed/assets/feed.js` so the feed can load on scroll.
+* JavaScript delay/defer tools: `feed.js` is small and already deferred; if your tool delays scripts until user interaction, exclude `shootcal-social-feed/assets/feed.js` so the feed can load on scroll.
 
 = Does filtering call Instagram's public hashtag search API? =
 
@@ -84,30 +84,41 @@ No. Filtering is performed locally against captions from the connected account's
 
 = What happens if Instagram is temporarily unavailable? =
 
-The last successful cached metadata stays visible. The actual images remain hosted by Meta, and Meta's signed media URLs may eventually expire during a long outage or after access is revoked. An administrator can see the error and retry from Settings.
+The last successful cached metadata stays visible. The actual images remain hosted by Meta, and Meta's signed media URLs may eventually expire during a long outage or after access is revoked. An administrator can see the error and retry from ShootCal Apps > Social Feed.
 
 = Does a page visitor ever trigger a live Instagram request? =
 
-No. Front-end rendering reads only the WordPress cache.
+No. Front-end rendering reads only the WordPress cache. Visitors' browsers still load feed images from Meta's CDN, as described under External services.
 
 = How do I delete the Instagram connection data? =
 
-Open ShootCal > Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
+Open ShootCal Apps > Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
 
 == External services ==
 
-During one-click connection, the plugin sends this site's WordPress admin callback URL, WordPress Address, plugin version, and a one-time cryptographic challenge to the ShootCal OAuth broker at `api.shootcal.com`. ShootCal redirects the administrator to Meta, temporarily handles the resulting Page-token candidate, and releases it only to this WordPress server after the server proves possession of the one-time verifier. Tokens are never placed in browser URLs. The broker attempt expires after ten minutes.
+The plugin contacts ShootCal only when an administrator starts or completes Connect with Facebook. During one-click connection, the plugin sends this site's WordPress admin callback URL, WordPress Address, plugin version, and a one-time cryptographic challenge to the ShootCal OAuth broker at `api.shootcal.com`. ShootCal redirects the administrator to Meta, temporarily handles the resulting Page-token candidate, and releases it only to this WordPress server after the server proves possession of the one-time verifier. Tokens are never placed in browser URLs. The broker attempt expires after ten minutes.
 
 After connection, this plugin connects to Meta's Graph API at `graph.facebook.com` during a scheduled or administrator-requested refresh. It sends the configured Instagram business account ID and Page access token to request the account username, captions, media type, media URLs, post links, timestamps, and carousel cover data. The token is decrypted only for these server-to-server requests and is never included in front-end HTML.
 
 Feed images are served from the remote Meta/Facebook CDN URLs returned by the API. A visitor's browser therefore connects directly to Meta to load each visible image, which can disclose ordinary request information such as the visitor's IP address and browser user agent to Meta. The plugin applies a no-referrer policy to image requests.
 
-Use of these services is subject to Meta's terms and privacy policy:
+Service terms and privacy policies:
 
+* ShootCal Terms of Service: https://shootcal.com/terms/
+* ShootCal Privacy Policy: https://shootcal.com/privacy/
+* ShootCal data-deletion instructions: https://shootcal.com/data-deletion/
 * Meta Platform Terms: https://developers.facebook.com/terms/
 * Meta Privacy Policy: https://www.facebook.com/privacy/policy/
 
+== Support ==
+
+For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
+
 == Changelog ==
+
+= 0.3.8 =
+* Prepare the public plugin-directory submission with current setup instructions, account requirements, and external-service disclosures.
+* Use the ShootCal Social Feed directory slug while preserving existing connections, saved feeds, shortcodes, and cache keys.
 
 = 0.3.7 =
 * Name the slider app Photo Slider to match the ShootCal Slider admin screen.

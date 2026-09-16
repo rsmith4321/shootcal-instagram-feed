@@ -247,7 +247,7 @@ try {
 	if ( ! str_contains( $dynamic, 'shootcal-instagram-feed-loader' ) || ! str_contains( $dynamic, '/shootcal-instagram-feed/v1/feed' ) ) {
 		throw new RuntimeException( 'The dynamic shortcode did not render its cache-only loader.' );
 	}
-	if ( ! str_contains( $dynamic, 'data-stylesheet=' ) || ! str_contains( $dynamic, '/shootcal-instagram-feed/assets/feed.css?ver=' . VERSION ) ) {
+	if ( ! str_contains( $dynamic, 'data-stylesheet=' ) || ! str_contains( $dynamic, '/shootcal-social-feed/assets/feed.css?ver=' . VERSION ) ) {
 		throw new RuntimeException( 'The dynamic shortcode did not expose its versioned runtime stylesheet.' );
 	}
 	if ( ! str_contains( $dynamic, 'data-class="fixture-class"' ) || ! str_contains( $dynamic, 'shootcal-instagram-feed fixture-class' ) ) {

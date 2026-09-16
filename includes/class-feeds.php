@@ -59,7 +59,7 @@ class Feeds {
 		if ( null === $normalized ) {
 			return new \WP_Error(
 				'shootcal_instagram_feed_invalid',
-				__( 'The feed needs a name, and hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-instagram-feed' )
+				__( 'The feed needs a name, and hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -68,14 +68,14 @@ class Feeds {
 			if ( count( $feeds ) >= self::MAX_FEEDS ) {
 				return new \WP_Error(
 					'shootcal_instagram_feed_limit',
-					__( 'Delete an unused feed before creating another.', 'shootcal-instagram-feed' )
+					__( 'Delete an unused feed before creating another.', 'shootcal-social-feed' )
 				);
 			}
 			$id = empty( $feeds ) ? 1 : max( array_keys( $feeds ) ) + 1;
 		} elseif ( ! isset( $feeds[ $id ] ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_feed_missing',
-				__( 'That feed no longer exists.', 'shootcal-instagram-feed' )
+				__( 'That feed no longer exists.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -86,7 +86,7 @@ class Feeds {
 		if ( ! is_array( $stored ) || ! isset( $stored[ $id ] ) || $stored[ $id ] !== $normalized ) {
 			return new \WP_Error(
 				'shootcal_instagram_feed_store_failed',
-				__( 'WordPress could not save the feed.', 'shootcal-instagram-feed' )
+				__( 'WordPress could not save the feed.', 'shootcal-social-feed' )
 			);
 		}
 

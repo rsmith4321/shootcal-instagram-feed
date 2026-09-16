@@ -37,7 +37,7 @@ class Shortcode {
 				}
 				Assets::enqueue();
 				/* translators: %d: requested feed id. */
-				return '<p class="shootcal-instagram-feed__empty">' . esc_html( sprintf( __( 'ShootCal Social Feed %d does not exist. Recreate it or update this shortcode.', 'shootcal-instagram-feed' ), $feed_id ) ) . '</p>';
+				return '<p class="shootcal-instagram-feed__empty">' . esc_html( sprintf( __( 'ShootCal Social Feed %d does not exist. Recreate it or update this shortcode.', 'shootcal-social-feed' ), $feed_id ) ) . '</p>';
 			}
 			// Explicit shortcode attributes still override the saved preset.
 			$raw = array_merge( Feeds::to_shortcode_attributes( $preset ), $raw );
@@ -140,14 +140,14 @@ class Shortcode {
 
 			Assets::enqueue();
 			$message = ! $valid_hashtag
-				? __( 'Instagram hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-instagram-feed' )
+				? __( 'Instagram hashtags may contain only letters, numbers, or underscores, separated by commas.', 'shootcal-social-feed' )
 				: ( '' !== $hashtag
 					? sprintf(
 						/* translators: %s: requested hashtags. */
-						__( 'No cached Instagram posts matched %s.', 'shootcal-instagram-feed' ),
+						__( 'No cached Instagram posts matched %s.', 'shootcal-social-feed' ),
 						'#' . str_replace( ',', ' #', $hashtag )
 					)
-					: __( 'No Instagram posts are cached yet.', 'shootcal-instagram-feed' ) );
+					: __( 'No Instagram posts are cached yet.', 'shootcal-social-feed' ) );
 
 			return '<p class="shootcal-instagram-feed__empty">' . esc_html( $message ) . '</p>';
 		}
@@ -180,15 +180,15 @@ class Shortcode {
 				$permalink  = isset( $item['permalink'] ) && is_string( $item['permalink'] ) ? $item['permalink'] : '';
 				$timestamp  = isset( $item['timestamp'] ) && is_string( $item['timestamp'] ) ? strtotime( $item['timestamp'] ) : false;
 				$alt        = trim( wp_strip_all_tags( $caption ) );
-				$alt        = '' !== $alt ? wp_trim_words( $alt, 18, '&hellip;' ) : __( 'Instagram post', 'shootcal-instagram-feed' );
+				$alt        = '' !== $alt ? wp_trim_words( $alt, 18, '&hellip;' ) : __( 'Instagram post', 'shootcal-social-feed' );
 				$label      = $timestamp
 					? sprintf(
 						/* translators: 1: account username. 2: post date. */
-						__( 'View Instagram post by %1$s from %2$s', 'shootcal-instagram-feed' ),
-						'' !== $account ? '@' . $account : __( 'this account', 'shootcal-instagram-feed' ),
+						__( 'View Instagram post by %1$s from %2$s', 'shootcal-social-feed' ),
+						'' !== $account ? '@' . $account : __( 'this account', 'shootcal-social-feed' ),
 						wp_date( get_option( 'date_format' ), $timestamp )
 					)
-					: __( 'View this post on Instagram', 'shootcal-instagram-feed' );
+					: __( 'View this post on Instagram', 'shootcal-social-feed' );
 				$item_classes = array( 'shootcal-instagram-feed__item' );
 				if ( 0 < $mobile_limit && (int) $item_index >= $mobile_limit ) {
 					$item_classes[] = 'shootcal-instagram-feed__item--mobile-hidden';
@@ -197,7 +197,7 @@ class Shortcode {
 				<a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
 					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
-						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-instagram-feed' ); ?></span>
+						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-social-feed' ); ?></span>
 					<?php elseif ( 'CAROUSEL_ALBUM' === $media_type ) : ?>
 						<span class="shootcal-instagram-feed__type shootcal-instagram-feed__type--carousel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M15.5 4.5H7A2.5 2.5 0 0 0 4.5 7v8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
 					<?php endif; ?>
@@ -206,7 +206,7 @@ class Shortcode {
 			</div>
 			<?php if ( $show_follow && '' !== $profile ) : ?>
 				<p class="shootcal-instagram-feed__follow">
-					<a class="shootcal-instagram-feed__follow-link" href="<?php echo esc_url( $profile ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Follow on Instagram', 'shootcal-instagram-feed' ); ?></a>
+					<a class="shootcal-instagram-feed__follow-link" href="<?php echo esc_url( $profile ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Follow on Instagram', 'shootcal-social-feed' ); ?></a>
 				</p>
 			<?php endif; ?>
 		</div>

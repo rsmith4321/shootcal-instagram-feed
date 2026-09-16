@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 class Compatibility {
 
-	private const STYLESHEET_PATH = '/shootcal-instagram-feed/';
+	private const STYLESHEET_PATHS = array( '/shootcal-social-feed/', '/shootcal-instagram-feed/' );
 
 	private const SELECTOR_PREFIXES = array(
 		'.shootcal-instagram-feed',
@@ -42,8 +42,10 @@ class Compatibility {
 		if ( ! is_array( $stylesheets ) ) {
 			return $stylesheets;
 		}
-		if ( ! in_array( self::STYLESHEET_PATH, $stylesheets, true ) ) {
-			$stylesheets[] = self::STYLESHEET_PATH;
+		foreach ( self::STYLESHEET_PATHS as $stylesheet_path ) {
+			if ( ! in_array( $stylesheet_path, $stylesheets, true ) ) {
+				$stylesheets[] = $stylesheet_path;
+			}
 		}
 
 		return $stylesheets;

@@ -76,7 +76,7 @@ class Config {
 		if ( ! is_string( $options['access_token'] ) || '' === $options['access_token'] ) {
 			return new \WP_Error(
 				'shootcal_instagram_no_token',
-				__( 'No Instagram access token is configured.', 'shootcal-instagram-feed' )
+				__( 'No Instagram access token is configured.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -96,7 +96,7 @@ class Config {
 		if ( '' === $token || strlen( $token ) > 4096 || 1 === preg_match( '/[\x00-\x20\x7F]/', $token ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_bad_token',
-				__( 'The access token was empty or invalid.', 'shootcal-instagram-feed' )
+				__( 'The access token was empty or invalid.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -123,7 +123,7 @@ class Config {
 		if ( 1 !== preg_match( '/^[0-9]{1,191}$/', $account_id ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_bad_account',
-				__( 'ShootCal returned an invalid Instagram account.', 'shootcal-instagram-feed' )
+				__( 'ShootCal returned an invalid Instagram account.', 'shootcal-social-feed' )
 			);
 		}
 		$token = preg_replace( '/\s+/', '', trim( $token ) );
@@ -131,7 +131,7 @@ class Config {
 		if ( '' === $token || strlen( $token ) > 4096 || 1 === preg_match( '/[\x00-\x20\x7F]/', $token ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_bad_token',
-				__( 'ShootCal returned an invalid Instagram access token.', 'shootcal-instagram-feed' )
+				__( 'ShootCal returned an invalid Instagram access token.', 'shootcal-social-feed' )
 			);
 		}
 		$encrypted = Token_Cipher::encrypt( $token );
@@ -177,7 +177,7 @@ class Config {
 		if ( ! is_array( $stored ) || $stored !== $options ) {
 			return new \WP_Error(
 				'shootcal_instagram_store_failed',
-				__( 'WordPress could not save the Instagram connection.', 'shootcal-instagram-feed' )
+				__( 'WordPress could not save the Instagram connection.', 'shootcal-social-feed' )
 			);
 		}
 

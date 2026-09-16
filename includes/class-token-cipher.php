@@ -23,7 +23,7 @@ class Token_Cipher {
 		if ( ! function_exists( 'openssl_encrypt' ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_no_openssl',
-				__( 'OpenSSL is required to store the Instagram token securely.', 'shootcal-instagram-feed' )
+				__( 'OpenSSL is required to store the Instagram token securely.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -32,7 +32,7 @@ class Token_Cipher {
 		} catch ( \Exception $exception ) {
 			return new \WP_Error(
 				'shootcal_instagram_random_failed',
-				__( 'WordPress could not generate secure random data for the token.', 'shootcal-instagram-feed' )
+				__( 'WordPress could not generate secure random data for the token.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -49,7 +49,7 @@ class Token_Cipher {
 		if ( false === $ciphertext || 16 !== strlen( $tag ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_encrypt_failed',
-				__( 'WordPress could not encrypt the Instagram token.', 'shootcal-instagram-feed' )
+				__( 'WordPress could not encrypt the Instagram token.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -63,7 +63,7 @@ class Token_Cipher {
 		if ( strpos( $stored, self::PREFIX ) !== 0 || ! function_exists( 'openssl_decrypt' ) ) {
 			return new \WP_Error(
 				'shootcal_instagram_decrypt_failed',
-				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-instagram-feed' )
+				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -71,7 +71,7 @@ class Token_Cipher {
 		if ( false === $decoded || strlen( $decoded ) < 29 ) {
 			return new \WP_Error(
 				'shootcal_instagram_decrypt_failed',
-				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-instagram-feed' )
+				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -90,7 +90,7 @@ class Token_Cipher {
 		if ( false === $plaintext || '' === $plaintext ) {
 			return new \WP_Error(
 				'shootcal_instagram_decrypt_failed',
-				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-instagram-feed' )
+				__( 'The stored Instagram token could not be decrypted. Save a new token.', 'shootcal-social-feed' )
 			);
 		}
 

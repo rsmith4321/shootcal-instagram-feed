@@ -23,7 +23,7 @@ class OAuth_Broker {
 		if ( ! self::valid_callback_url( $callback_url )
 			|| 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $return_state )
 			|| 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $code_challenge ) ) {
-			return self::error( 'shootcal_instagram_broker_request', __( 'WordPress could not create a safe Instagram connection request.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_request', __( 'WordPress could not create a safe Instagram connection request.', 'shootcal-social-feed' ) );
 		}
 
 		$response = $this->post(
@@ -44,7 +44,7 @@ class OAuth_Broker {
 		if ( ! self::exact_keys( $response, array( 'authorizationUrl' ) )
 			|| ! is_string( $response['authorizationUrl'] )
 			|| ! self::valid_authorization_url( $response['authorizationUrl'] ) ) {
-			return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an unsafe Instagram authorization link.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an unsafe Instagram authorization link.', 'shootcal-social-feed' ) );
 		}
 
 		return array( 'authorizationUrl' => $response['authorizationUrl'] );
@@ -57,7 +57,7 @@ class OAuth_Broker {
 		if ( 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $handoff )
 			|| 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $verifier )
 			|| ( null !== $candidate && 1 !== preg_match( '/^[A-Za-z0-9_-]{22}$/', $candidate ) ) ) {
-			return self::error( 'shootcal_instagram_broker_request', __( 'The Instagram connection result was invalid or expired.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_request', __( 'The Instagram connection result was invalid or expired.', 'shootcal-social-feed' ) );
 		}
 		$body = array(
 			'handoff' => $handoff,
@@ -99,7 +99,7 @@ class OAuth_Broker {
 					|| isset( $seen[ $choice['id'] ] ) || ! is_string( $choice['pageName'] )
 					|| '' === trim( $choice['pageName'] ) || strlen( $choice['pageName'] ) > 191
 					|| ( null !== $choice['username'] && ( ! is_string( $choice['username'] ) || ! self::valid_username( $choice['username'] ) ) ) ) {
-					return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an invalid Instagram account list.', 'shootcal-instagram-feed' ) );
+					return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an invalid Instagram account list.', 'shootcal-social-feed' ) );
 				}
 				$seen[ $choice['id'] ] = true;
 				$choices[]             = $choice;
@@ -108,7 +108,7 @@ class OAuth_Broker {
 			return array( 'status' => 'selecting', 'choices' => $choices );
 		}
 
-		return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an unreadable Instagram connection result.', 'shootcal-instagram-feed' ) );
+		return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an unreadable Instagram connection result.', 'shootcal-social-feed' ) );
 	}
 
 	/** @return array<string,mixed>|\WP_Error */
@@ -128,16 +128,16 @@ class OAuth_Broker {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			return self::error( 'shootcal_instagram_broker_unavailable', __( 'ShootCal could not be reached. Try connecting again.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_unavailable', __( 'ShootCal could not be reached. Try connecting again.', 'shootcal-social-feed' ) );
 		}
 		$status = (int) wp_remote_retrieve_response_code( $response );
 		$raw    = (string) wp_remote_retrieve_body( $response );
 		if ( strlen( $raw ) > self::MAX_BODY_BYTES ) {
-			return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an oversized response.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_response', __( 'ShootCal returned an oversized response.', 'shootcal-social-feed' ) );
 		}
 		$data = json_decode( $raw, true );
 		if ( $status < 200 || $status >= 300 || ! is_array( $data ) || self::is_list( $data ) ) {
-			return self::error( 'shootcal_instagram_broker_failed', __( 'Instagram could not be connected. Try again.', 'shootcal-instagram-feed' ) );
+			return self::error( 'shootcal_instagram_broker_failed', __( 'Instagram could not be connected. Try again.', 'shootcal-social-feed' ) );
 		}
 
 		return $data;

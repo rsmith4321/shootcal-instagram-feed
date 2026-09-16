@@ -64,7 +64,7 @@ class Feed_Store {
 		if ( ! $this->acquire_lock() ) {
 			return new \WP_Error(
 				'shootcal_instagram_refresh_busy',
-				__( 'An Instagram refresh is already running. Try again shortly.', 'shootcal-instagram-feed' )
+				__( 'An Instagram refresh is already running. Try again shortly.', 'shootcal-social-feed' )
 			);
 		}
 
@@ -81,7 +81,7 @@ class Feed_Store {
 			if ( '' === $account_id ) {
 				$error = new \WP_Error(
 					'shootcal_instagram_no_account_id',
-					__( 'No Instagram business account ID is configured.', 'shootcal-instagram-feed' )
+					__( 'No Instagram business account ID is configured.', 'shootcal-social-feed' )
 				);
 				$this->record_failure( $error );
 				return $error;
@@ -110,7 +110,7 @@ class Feed_Store {
 			if ( ! empty( $media ) && empty( $items ) ) {
 				$error = new \WP_Error(
 					'shootcal_instagram_unusable_media',
-					__( 'Instagram returned media, but none of it contained a usable image or video thumbnail. The previous cache was preserved.', 'shootcal-instagram-feed' )
+					__( 'Instagram returned media, but none of it contained a usable image or video thumbnail. The previous cache was preserved.', 'shootcal-social-feed' )
 				);
 				$this->record_failure( $error );
 				return $error;

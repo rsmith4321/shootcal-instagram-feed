@@ -31,7 +31,7 @@ class Scheduler {
 	public static function add_schedule( array $schedules ): array {
 		$schedules[ self::SCHEDULE ] = array(
 			'interval' => 6 * HOUR_IN_SECONDS,
-			'display'  => __( 'Every six hours', 'shootcal-instagram-feed' ),
+			'display'  => __( 'Every six hours', 'shootcal-social-feed' ),
 		);
 
 		return $schedules;

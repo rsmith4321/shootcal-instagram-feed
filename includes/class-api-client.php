@@ -122,7 +122,7 @@ class Api_Client {
 				'shootcal_instagram_transport_error',
 				sprintf(
 					/* translators: %s: sanitized WordPress HTTP error. */
-					__( 'Instagram could not be reached: %s', 'shootcal-instagram-feed' ),
+					__( 'Instagram could not be reached: %s', 'shootcal-social-feed' ),
 					$response->get_error_message()
 				)
 			);
@@ -137,7 +137,7 @@ class Api_Client {
 				'shootcal_instagram_invalid_json',
 				sprintf(
 					/* translators: %d: HTTP response status. */
-					__( 'Instagram returned an unreadable response (HTTP %d).', 'shootcal-instagram-feed' ),
+					__( 'Instagram returned an unreadable response (HTTP %d).', 'shootcal-social-feed' ),
 					$status
 				)
 			);
@@ -145,14 +145,14 @@ class Api_Client {
 
 		if ( $status < 200 || $status >= 300 || isset( $json['error'] ) ) {
 			$error     = isset( $json['error'] ) && is_array( $json['error'] ) ? $json['error'] : array();
-			$message   = isset( $error['message'] ) && is_string( $error['message'] ) ? sanitize_text_field( $error['message'] ) : __( 'Unknown Instagram API error.', 'shootcal-instagram-feed' );
+			$message   = isset( $error['message'] ) && is_string( $error['message'] ) ? sanitize_text_field( $error['message'] ) : __( 'Unknown Instagram API error.', 'shootcal-social-feed' );
 			$meta_code = isset( $error['code'] ) ? (int) $error['code'] : 0;
 
 			return new \WP_Error(
 				'shootcal_instagram_api_error',
 				sprintf(
 					/* translators: 1: Instagram error text. 2: Meta error code. */
-					__( '%1$s (Meta code %2$d)', 'shootcal-instagram-feed' ),
+					__( '%1$s (Meta code %2$d)', 'shootcal-social-feed' ),
 					$message,
 					$meta_code
 				),
