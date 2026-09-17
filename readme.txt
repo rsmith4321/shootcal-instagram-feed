@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.8
+Stable tag: 0.3.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -115,6 +115,10 @@ Service terms and privacy policies:
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
 == Changelog ==
+
+= 0.3.9 =
+* Keep the multiphoto icon unchanged when hovering or focusing a feed image.
+* Add a subtle cell border so white-padded Instagram photos have a clear edge.
 
 = 0.3.8 =
 * Prepare the public plugin-directory submission with current setup instructions, account requirements, and external-service disclosures.
