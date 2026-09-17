@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.9
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,7 @@ Features:
 * Scheduled cache refresh with a last-known-good fallback.
 * One-click Facebook authorization through ShootCal, plus manual-token fallback.
 * Manual refresh and connection status in ShootCal Apps > Social Feed.
+* Preview saved Smash Balloon feed imports, map existing shortcode IDs, and explicitly switch with an undo option.
 
 Requirements: a WordPress site using HTTPS and an Instagram Business or Creator account linked to a Facebook Page that you can manage. The Connect with Facebook flow uses ShootCal's Meta app, so you do not need to create your own developer app. Advanced users can enter their own numeric Instagram account ID and Page access token instead. The plugin uses the official Instagram API with Facebook Login. It does not scrape Instagram or support Personal accounts.
 
@@ -67,6 +68,16 @@ If the surrounding page is held in a full-page cache, add `dynamic="true"`. The 
 `[shootcal_instagram_feed hashtag="wedding" limit="5" columns="5" mobile_limit="4" follow="true" dynamic="true"]`
 
 == Frequently Asked Questions ==
+
+= Can I migrate from Smash Balloon? =
+
+Yes. In ShootCal Apps > Social Feed, use Import from Smash Balloon after connecting the same Instagram account. Saved definitions can be read while Smash Balloon is inactive. Supported single-account grid feeds can become new ShootCal presets. You can also explicitly map an old feed ID to an existing ShootCal preset, including when the old settings cannot be converted automatically.
+
+Importing saves presets and ID mappings only. Review the cached previews, then choose Switch shortcodes to ShootCal. If Smash Balloon is active, the form requires an explicit choice to deactivate it. The importer preserves its saved data and does not copy credentials or rewrite page content. Undo switch reactivates only the Smash Balloon plugin that this importer deactivated; imported presets remain available.
+
+After switching, mapped `[instagram-feed feed="12"]` shortcodes and the standard Smash Balloon Instagram blocks render through ShootCal. Supported inline overrides are `num`, `cols`, `nummobile`, `showfollow`, and `class`. Bare legacy shortcodes without a saved feed ID and unsupported inline options require manual updates. Native Smash Balloon widgets and Elementor widgets must first be replaced with Shortcode blocks/widgets. Network-activated Smash Balloon installations cannot be switched by this site-level importer.
+
+This is a migration aid, not full feature or visual parity. ShootCal uses one connected professional account, its own responsive grid and cached recent posts, and exact caption hashtag filters. Word/phrase filters, public hashtag or tagged feeds, multiple-account sources, moderation, shopping, and other unsupported selection settings require an explicitly chosen replacement. Headers, captions, likes, lightboxes, Load More, and custom styles are not copied. The importer scans stored content and widgets; review any theme or external template embeds separately. Clear your page cache and verify affected pages after switching or undoing.
 
 = I use a performance plugin (Perfmatters, WP Rocket, LiteSpeed Cache, Autoptimize) and the feed looks unstyled or images misbehave. =
 
@@ -115,6 +126,11 @@ Service terms and privacy policies:
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
 == Changelog ==
+
+= 0.4.0 =
+* Add reviewed Smash Balloon feed import and explicit existing-feed mapping without rewriting content or copying credentials.
+* Add opt-in shortcode and standard-block compatibility, guarded plugin switching, cached previews, and undo.
+* Detect unsupported sources, filters, inline settings, native widgets, and Elementor widgets before switching.
 
 = 0.3.9 =
 * Keep the multiphoto icon unchanged when hovering or focusing a feed image.

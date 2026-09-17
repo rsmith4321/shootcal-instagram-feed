@@ -399,6 +399,7 @@ class Settings {
 				</form>
 			<?php endif; ?>
 
+			<?php Smash_Import_Admin::render(); ?>
 			<h2><?php esc_html_e( 'Feeds', 'shootcal-social-feed' ); ?></h2>
 			<p style="max-width:55em;"><?php esc_html_e( 'Create a named feed with its own hashtag filters, then paste its shortcode into any page. A post matches when its caption carries any of the listed hashtags; exclude hashtags remove posts even when they match. Editing a saved feed updates every page using its shortcode.', 'shootcal-social-feed' ); ?></p>
 			<?php

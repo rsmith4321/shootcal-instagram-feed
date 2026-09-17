@@ -19,6 +19,8 @@ foreach (
 		'shootcal_instagram_feed_status',
 		'shootcal_instagram_feed_refresh_lock',
 		'shootcal_instagram_feed_oauth',
+		'shootcal_instagram_feed_smash_import',
+		'shootcal_instagram_feed_smash_import_lock',
 	) as $shootcal_instagram_option
 ) {
 	delete_option( $shootcal_instagram_option );

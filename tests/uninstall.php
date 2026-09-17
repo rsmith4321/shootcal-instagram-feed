@@ -31,6 +31,8 @@ $expected_options = array(
 	'shootcal_instagram_feed_status',
 	'shootcal_instagram_feed_refresh_lock',
 	'shootcal_instagram_feed_oauth',
+	'shootcal_instagram_feed_smash_import',
+	'shootcal_instagram_feed_smash_import_lock',
 );
 
 if ( $expected_options !== $deleted_options ) {
