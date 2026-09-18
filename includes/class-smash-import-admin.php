@@ -16,9 +16,11 @@ class Smash_Import_Admin {
 	private const IMPORT_ACTION   = 'shootcal_instagram_smash_import';
 	private const SWITCH_ACTION   = 'shootcal_instagram_smash_switch';
 	private const ROLLBACK_ACTION = 'shootcal_instagram_smash_rollback';
+	private const PAGE            = 'shootcal-social-feed-import';
 	private const NOTICE_PREFIX   = 'shootcal_instagram_smash_notice_';
 
 	public function register(): void {
+		add_action( 'admin_menu', array( $this, 'register_page' ) );
 		add_action( 'admin_post_' . self::IMPORT_ACTION, array( $this, 'handle_import' ) );
 		add_action( 'admin_post_' . self::SWITCH_ACTION, array( $this, 'handle_switch' ) );
 		add_action( 'admin_post_' . self::ROLLBACK_ACTION, array( $this, 'handle_rollback' ) );
@@ -27,7 +29,7 @@ class Smash_Import_Admin {
 
 	public function enqueue_preview_assets( string $hook ): void {
 		// Another ShootCal plugin can own the parent menu and its hook prefix.
-		if ( str_ends_with( $hook, '_page_shootcal-instagram-feed' ) && current_user_can( 'manage_options' ) ) {
+		if ( ( str_ends_with( $hook, '_page_shootcal-instagram-feed' ) || str_ends_with( $hook, '_page_' . self::PAGE ) ) && current_user_can( 'manage_options' ) ) {
 			Assets::enqueue();
 		}
 	}
@@ -50,60 +52,138 @@ class Smash_Import_Admin {
 			$choices[ (string) $old_id ] = $choice;
 		}
 		$result = Smash_Import::import( $choices, self::post_text( 'fingerprint' ), '1' === self::post_text( 'acknowledge' ) );
-		self::redirect_result( $result, __( 'Selected feeds were imported. Review the cached previews below before switching the old shortcodes to ShootCal.', 'shootcal-social-feed' ) );
+		self::redirect_result( $result, __( 'Selected feeds were imported. Review the cached previews before switching the old shortcodes to ShootCal.', 'shootcal-social-feed' ), is_wp_error( $result ) ? 'feeds' : 'preview' );
 	}
 
 	public function handle_switch(): void {
 		self::authorize( self::SWITCH_ACTION, true );
 		$active = Smash_Import::active_plugins();
 		if ( ! empty( $active ) && '1' !== self::post_text( 'deactivate' ) ) {
-			self::redirect_result( new \WP_Error( 'deactivate_not_confirmed', __( 'Review the previews and check the deactivation confirmation before switching.', 'shootcal-social-feed' ) ) );
+			self::redirect_result( new \WP_Error( 'deactivate_not_confirmed', __( 'Review the previews and check the deactivation confirmation before switching.', 'shootcal-social-feed' ) ), '', 'switch' );
 		}
 		if ( empty( $active ) && '1' !== self::post_text( 'preview_acknowledge' ) ) {
-			self::redirect_result( new \WP_Error( 'preview_not_confirmed', __( 'Review the previews and confirm they show the feeds you want before enabling shortcode compatibility.', 'shootcal-social-feed' ) ) );
+			self::redirect_result( new \WP_Error( 'preview_not_confirmed', __( 'Review the previews and confirm they show the feeds you want before enabling shortcode compatibility.', 'shootcal-social-feed' ) ), '', 'switch' );
 		}
 		$fingerprint = self::post_text( 'fingerprint' );
 		if ( 1 !== preg_match( '/^[a-f0-9]{64}$/D', $fingerprint ) ) {
-			self::redirect_result( new \WP_Error( 'invalid_preview', __( 'Reload and review the feed previews before switching.', 'shootcal-social-feed' ) ) );
+			self::redirect_result( new \WP_Error( 'invalid_preview', __( 'Reload and review the feed previews before switching.', 'shootcal-social-feed' ) ), '', 'switch' );
 		}
 		$result = Smash_Import::switch( '1' === self::post_text( 'deactivate' ), $fingerprint );
-		self::redirect_result( $result, __( 'Shortcode compatibility is enabled. Mapped Smash Balloon shortcodes now use ShootCal. Clear your page cache and check the affected pages.', 'shootcal-social-feed' ) );
+		self::redirect_result( $result, __( 'Shortcode compatibility is enabled. Mapped Smash Balloon shortcodes now use ShootCal. Clear your page cache and check the affected pages.', 'shootcal-social-feed' ), is_wp_error( $result ) ? 'switch' : 'done' );
 	}
 
 	public function handle_rollback(): void {
 		self::authorize( self::ROLLBACK_ACTION, true );
-		self::redirect_result( Smash_Import::rollback(), __( 'Shortcode compatibility was turned off. Smash Balloon plugins deactivated by this importer were reactivated. Imported ShootCal feeds and the original Smash Balloon data were preserved.', 'shootcal-social-feed' ) );
+		$result = Smash_Import::rollback();
+		self::redirect_result( $result, __( 'Shortcode compatibility was turned off. Smash Balloon plugins deactivated by this importer were reactivated. Imported ShootCal feeds and the original Smash Balloon data were preserved.', 'shootcal-social-feed' ), is_wp_error( $result ) ? 'done' : 'preview' );
 	}
 
+	public function register_page(): void {
+		add_submenu_page( 'options.php', __( 'Import from Smash Balloon', 'shootcal-social-feed' ), __( 'Import from Smash Balloon', 'shootcal-social-feed' ), 'manage_options', self::PAGE, array( self::class, 'render_page' ) );
+	}
+
+	private static function url( string $step = 'start' ): string {
+		return add_query_arg( array( 'page' => self::PAGE, 'step' => $step ), admin_url( 'admin.php' ) );
+	}
+
+	/** The settings page is only an entry point; never scan legacy tables here. */
 	public static function render(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-
-		$catalog  = Smash_Import::catalog();
-		$state    = Smash_Import::state();
-		$feeds    = Feeds::all();
-		$mappings = $state['mappings'];
-		$enabled  = ! empty( $state['enabled'] );
-		$active   = Smash_Import::active_plugins();
+		$state = Smash_Import::state();
+		$step = $state['enabled'] ? 'done' : ( $state['mappings'] ? 'preview' : 'start' );
 		?>
 		<section id="shootcal-smash-import" style="max-width:75em;margin-top:2.5em;">
-			<h2><?php esc_html_e( 'Import from Smash Balloon', 'shootcal-social-feed' ); ?></h2>
+			<h2><?php esc_html_e( 'Moving from Smash Balloon?', 'shootcal-social-feed' ); ?></h2>
+			<p><?php esc_html_e( 'A guided import helps you keep supported Instagram shortcodes already on your pages.', 'shootcal-social-feed' ); ?></p>
+			<a class="button button-secondary" href="<?php echo esc_url( self::url( $step ) ); ?>"><?php echo $state['enabled'] ? esc_html__( 'Manage imported shortcodes', 'shootcal-social-feed' ) : esc_html__( 'Import from Smash Balloon', 'shootcal-social-feed' ); ?></a>
+		</section>
+		<?php
+	}
+
+	/** A separate, server-rendered walkthrough; visiting a step never imports or switches. */
+	public static function render_page(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$state = Smash_Import::state();
+		$step = isset( $_GET['step'] ) && is_string( $_GET['step'] ) ? sanitize_key( wp_unslash( $_GET['step'] ) ) : 'start';
+		$steps = array( 'start' => __( 'Before you begin', 'shootcal-social-feed' ), 'feeds' => __( 'Choose feeds', 'shootcal-social-feed' ), 'preview' => __( 'Preview', 'shootcal-social-feed' ), 'switch' => __( 'Switch', 'shootcal-social-feed' ) );
+		if ( ! isset( $steps[ $step ] ) && 'done' !== $step ) {
+			$step = 'start';
+		}
+		if ( $state['enabled'] ) {
+			$step = 'done';
+		} elseif ( 'done' === $step ) {
+			$step = $state['mappings'] ? 'preview' : 'start';
+		} elseif ( in_array( $step, array( 'preview', 'switch' ), true ) && ! $state['mappings'] ) {
+			$step = 'feeds';
+		}
+		?>
+		<div class="wrap" id="shootcal-smash-walkthrough" style="max-width:75em;">
+			<p><a href="<?php echo esc_url( admin_url( 'admin.php?page=shootcal-instagram-feed' ) ); ?>"><?php esc_html_e( 'Back to Social Feed', 'shootcal-social-feed' ); ?></a></p>
+			<h1><?php esc_html_e( 'Import from Smash Balloon', 'shootcal-social-feed' ); ?></h1>
+			<ol aria-label="<?php esc_attr_e( 'Import progress', 'shootcal-social-feed' ); ?>" style="display:flex;flex-wrap:wrap;gap:1em 2em;margin:1.5em 0 1.5em 1.5em;">
+				<?php foreach ( $steps as $key => $label ) : ?>
+					<li <?php if ( $key === $step || ( 'done' === $step && 'switch' === $key ) ) : ?>aria-current="step" style="font-weight:600;"<?php endif; ?>><?php echo esc_html( $label ); ?></li>
+				<?php endforeach; ?>
+			</ol>
 			<?php self::render_notice(); ?>
-			<p><?php esc_html_e( 'Keep your existing Instagram shortcodes by matching saved Smash Balloon feeds to ShootCal feeds. First connect the same Instagram account to ShootCal, then import and review the previews. Importing alone does not change your live shortcodes or deactivate another plugin.', 'shootcal-social-feed' ); ?></p>
-			<p><?php esc_html_e( 'ShootCal uses its own cached posts and grid styling, up to two phone columns, and links to Instagram. Headers, captions, likes, lightboxes, Load More, custom CSS, and custom button styles are not copied. Differences specific to each feed are listed below.', 'shootcal-social-feed' ); ?></p>
-			<?php if ( $enabled ) : ?>
-				<?php if ( ! empty( $active ) ) : ?>
-					<div class="notice notice-warning inline">
-						<p><strong><?php esc_html_e( 'Smash Balloon is active. ShootCal compatibility is paused.', 'shootcal-social-feed' ); ?></strong></p>
-						<p><?php esc_html_e( 'ShootCal yields the old shortcodes to Smash Balloon while it is active. Your mappings are saved. Use Undo switch below, review the previews, and switch again to make ShootCal handle the old shortcodes.', 'shootcal-social-feed' ); ?></p>
-					</div>
-				<?php else : ?>
-					<p><strong><?php esc_html_e( 'Shortcode compatibility is enabled.', 'shootcal-social-feed' ); ?></strong> <?php esc_html_e( 'Use Undo switch below before changing these mappings.', 'shootcal-social-feed' ); ?></p>
-				<?php endif; ?>
-			<?php elseif ( empty( $catalog ) ) : ?>
-				<p><?php esc_html_e( 'No saved Smash Balloon Instagram feeds were found. Smash Balloon can stay inactive during import, but its saved feed data must still be present.', 'shootcal-social-feed' ); ?></p>
+			<?php if ( 'start' === $step ) : ?>
+				<?php self::render_start(); ?>
+			<?php elseif ( 'feeds' === $step ) : ?>
+				<?php self::render_choices(); ?>
+			<?php elseif ( 'preview' === $step ) : ?>
+				<?php self::render_previews( Smash_Import::catalog(), $state['mappings'], Feeds::all() ); ?>
+				<p><a class="button" href="<?php echo esc_url( self::url( 'feeds' ) ); ?>"><?php esc_html_e( 'Back to choose feeds', 'shootcal-social-feed' ); ?></a> <a class="button button-primary" href="<?php echo esc_url( self::url( 'switch' ) ); ?>"><?php esc_html_e( 'Continue to switch', 'shootcal-social-feed' ); ?></a></p>
+			<?php elseif ( 'switch' === $step ) : ?>
+				<?php self::render_switch( false, $state ); ?>
+				<p><a class="button" href="<?php echo esc_url( self::url( 'preview' ) ); ?>"><?php esc_html_e( 'Back to previews', 'shootcal-social-feed' ); ?></a></p>
 			<?php else : ?>
+				<h2><?php esc_html_e( 'Your shortcode mappings are saved', 'shootcal-social-feed' ); ?></h2>
+				<?php if ( Smash_Import::active_plugins() ) : ?>
+					<div class="notice notice-warning inline"><p><?php esc_html_e( 'Smash Balloon is active, so ShootCal is leaving its shortcodes with that plugin. Undo the switch below, then review and switch again when ready.', 'shootcal-social-feed' ); ?></p></div>
+				<?php else : ?>
+					<p><?php esc_html_e( 'ShootCal now renders your mapped Instagram shortcodes. The shortcodes in your page content were not changed. Clear your page cache and check the affected pages.', 'shootcal-social-feed' ); ?></p>
+				<?php endif; ?>
+				<p><?php esc_html_e( 'Keep Smash Balloon installed and inactive until you have checked your pages. If you later delete it, enable its Preserve settings if plugin is removed option first if you want to retain its data. Undo may require reinstalling Smash Balloon after deletion.', 'shootcal-social-feed' ); ?></p>
+				<?php self::render_switch( true, $state ); ?>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	private static function render_start(): void {
+		$connected = Config::has_token() && '' !== (string) Config::get()['instagram_account_id'];
+		?>
+		<h2><?php esc_html_e( 'Keep the shortcodes already on your pages', 'shootcal-social-feed' ); ?></h2>
+		<p><?php esc_html_e( 'For supported feeds, ShootCal can take over shortcodes such as [instagram-feed feed="12"] without editing your page HTML. You will choose the feeds, review their appearance, then make an explicit switch.', 'shootcal-social-feed' ); ?></p>
+		<ul style="list-style:disc;padding-left:1.5em;max-width:55em;">
+			<li><?php esc_html_e( 'Connect the same Instagram account to ShootCal first. Import uses ShootCal’s connection and cached posts; it does not copy Smash Balloon credentials.', 'shootcal-social-feed' ); ?></li>
+			<li><?php esc_html_e( 'Leave Smash Balloon active while you import and preview if it is serving your live pages. The final switch can deactivate it and hand supported shortcodes to ShootCal together.', 'shootcal-social-feed' ); ?></li>
+			<li><?php esc_html_e( 'Already deactivated or removed Smash Balloon? Import still works when its saved feed data remains in this WordPress database. Do not delete it just to start this walkthrough: deletion can erase that data unless its Preserve settings if plugin is removed option was enabled.', 'shootcal-social-feed' ); ?></li>
+		</ul>
+		<?php if ( $connected ) : ?>
+			<p><a class="button button-primary" href="<?php echo esc_url( self::url( 'feeds' ) ); ?>"><?php esc_html_e( 'Choose feeds to import', 'shootcal-social-feed' ); ?></a></p>
+		<?php else : ?>
+			<p><a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=shootcal-instagram-feed' ) ); ?>"><?php esc_html_e( 'Connect Instagram in Social Feed', 'shootcal-social-feed' ); ?></a></p>
+		<?php endif; ?>
+		<?php
+	}
+
+	private static function render_choices(): void {
+		$catalog = Smash_Import::catalog();
+		$state = Smash_Import::state();
+		$feeds = Feeds::all();
+		$mappings = $state['mappings'];
+		?>
+		<h2><?php esc_html_e( 'Choose the feeds you want to bring over', 'shootcal-social-feed' ); ?></h2>
+		<p><?php esc_html_e( 'Only selected feeds are imported. Your live shortcodes stay with their current plugin until the final switch.', 'shootcal-social-feed' ); ?></p>
+		<details style="margin:1em 0;"><summary><?php esc_html_e( 'What will look different?', 'shootcal-social-feed' ); ?></summary><p><?php esc_html_e( 'ShootCal uses its own cached posts and grid styling, up to two phone columns, and links to Instagram. Headers, captions, likes, lightboxes, Load More, custom CSS, and custom button styles are not copied. Review each feed’s notes for unsupported settings.', 'shootcal-social-feed' ); ?></p></details>
+		<?php if ( empty( $catalog ) ) : ?>
+			<p><?php esc_html_e( 'No saved Smash Balloon Instagram feeds were found. If removal deleted its settings, restore those settings from a backup before importing, or create your feeds directly in ShootCal.', 'shootcal-social-feed' ); ?></p>
+		<?php else : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="<?php echo esc_attr( self::IMPORT_ACTION ); ?>" />
 					<input type="hidden" name="fingerprint" value="<?php echo esc_attr( Smash_Import::fingerprint( $catalog ) ); ?>" />
@@ -152,16 +232,8 @@ class Smash_Import_Admin {
 					<?php submit_button( __( 'Import selected feeds', 'shootcal-social-feed' ), 'secondary', 'submit', false ); ?>
 					<p class="description"><?php esc_html_e( 'Skipped rows keep any existing mapping. This step only saves feed presets and mappings.', 'shootcal-social-feed' ); ?></p>
 				</form>
-			<?php endif; ?>
-			<?php
-			if ( ! empty( $mappings ) ) {
-				self::render_previews( $catalog, $mappings, $feeds );
-				self::render_switch( $enabled, $state );
-			} elseif ( $enabled || ! empty( $state['deactivated'] ) ) {
-				self::render_switch( $enabled, $state );
-			}
-			?>
-		</section>
+		<?php endif; ?>
+		<p><a class="button" href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( 'Back', 'shootcal-social-feed' ); ?></a></p>
 		<?php
 	}
 
@@ -216,7 +288,7 @@ class Smash_Import_Admin {
 					<?php if ( ! empty( $active ) ) : ?>
 						<p><label><input type="checkbox" name="deactivate" value="1" required <?php disabled( ! empty( $blockers ) ); ?> /> <?php esc_html_e( 'Deactivate Smash Balloon after checking these previews.', 'shootcal-social-feed' ); ?></label></p>
 					<?php else : ?>
-						<p><?php esc_html_e( 'Smash Balloon is inactive. This enables shortcode compatibility without changing any plugin activation.', 'shootcal-social-feed' ); ?></p>
+						<p><?php esc_html_e( 'Smash Balloon is not active. This enables shortcode compatibility without changing any plugin activation.', 'shootcal-social-feed' ); ?></p>
 						<p><label><input type="checkbox" name="preview_acknowledge" value="1" required <?php disabled( ! empty( $blockers ) ); ?> /> <?php esc_html_e( 'I checked the previews and want these feeds to replace the mapped Smash Balloon shortcodes.', 'shootcal-social-feed' ); ?></label></p>
 					<?php endif; ?>
 					<button type="submit" class="button button-primary" <?php disabled( ! empty( $blockers ) ); ?>><?php echo empty( $active ) ? esc_html__( 'Enable shortcode compatibility', 'shootcal-social-feed' ) : esc_html__( 'Switch shortcodes to ShootCal', 'shootcal-social-feed' ); ?></button>
@@ -263,7 +335,7 @@ class Smash_Import_Admin {
 	/**
 	 * @param true|\WP_Error $result Import operation result.
 	 */
-	private static function redirect_result( $result, string $success_message = '' ): void {
+	private static function redirect_result( $result, string $success_message = '', string $step = 'feeds' ): void {
 		set_transient(
 			self::NOTICE_PREFIX . get_current_user_id(),
 			array(
@@ -272,7 +344,7 @@ class Smash_Import_Admin {
 			),
 			5 * MINUTE_IN_SECONDS
 		);
-		wp_safe_redirect( admin_url( 'admin.php?page=shootcal-instagram-feed' ) . '#shootcal-smash-import' );
+		wp_safe_redirect( self::url( $step ) );
 		exit;
 	}
 

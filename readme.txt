@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,7 +71,9 @@ If the surrounding page is held in a full-page cache, add `dynamic="true"`. The 
 
 = Can I migrate from Smash Balloon? =
 
-Yes. In ShootCal Apps > Social Feed, use Import from Smash Balloon after connecting the same Instagram account. Saved definitions can be read while Smash Balloon is inactive. Supported single-account grid feeds can become new ShootCal presets. You can also explicitly map an old feed ID to an existing ShootCal preset, including when the old settings cannot be converted automatically.
+Yes. In ShootCal Apps > Social Feed, select the Import from Smash Balloon button after connecting the same Instagram account. The separate walkthrough guides you through preparation, feed selection, previews, and switching. Saved definitions can be read while Smash Balloon is active, inactive, or removed, provided its data remains in the database. Supported single-account grid feeds can become new ShootCal presets. You can also explicitly map an old feed ID to an existing ShootCal preset, including when the old settings cannot be converted automatically.
+
+Leave Smash Balloon active during import and preview if it serves your live pages. Do not delete it to start the import: deletion can erase its data unless its Preserve settings if plugin is removed option is enabled.
 
 Importing saves presets and ID mappings only. Review the cached previews, then choose Switch shortcodes to ShootCal. If Smash Balloon is active, the form requires an explicit choice to deactivate it. The importer preserves its saved data and does not copy credentials or rewrite page content. Undo switch reactivates only the Smash Balloon plugin that this importer deactivated; imported presets remain available.
 
@@ -126,6 +128,11 @@ Service terms and privacy policies:
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
 == Changelog ==
+
+= 0.4.1 =
+* Move Smash Balloon import behind a single settings-page button and a four-step guided walkthrough.
+* Explain preserved shortcodes, importing retained data after removal, and deactivation at the final switch.
+* Keep source feeds, previews, and switch controls off the regular settings page.
 
 = 0.4.0 =
 * Add reviewed Smash Balloon feed import and explicit existing-feed mapping without rewriting content or copying credentials.

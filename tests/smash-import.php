@@ -26,6 +26,7 @@ $assertions         = 0;
 $initial_user       = get_current_user_id();
 $initial_shortcode  = $shortcode_tags;
 $initial_post       = $_POST;
+$initial_get        = $_GET;
 $initial_method     = $_SERVER['REQUEST_METHOD'] ?? null;
 $owned_tables       = array();
 $owned_files        = array();
@@ -176,6 +177,42 @@ try {
 	$renderer->register_compatibility();
 	$assert( ! shortcode_exists( 'instagram-feed' ), 'Saving mappings enabled legacy shortcode takeover.' );
 
+
+	// The compact settings entry must not inspect or display residual source tables.
+	$queries = array();
+	$observe_queries = static function ( string $query ) use ( &$queries ): string { $queries[] = $query; return $query; };
+	add_filter( 'query', $observe_queries );
+	ob_start();
+	Smash_Import_Admin::render();
+	$entry = ob_get_clean();
+	remove_filter( 'query', $observe_queries );
+	$assert( str_contains( $entry, 'shootcal-social-feed-import' ) && ! str_contains( $entry, '<table' ) && ! str_contains( $entry, 'Fixture 12' ), 'Settings entry leaked the full legacy catalog.' );
+	$assert( ! array_filter( $queries, static fn( $query ) => str_contains( $query, 'sbi_feeds' ) || str_contains( $query, 'sbi_sources' ) ), 'Opening settings queried old Smash Balloon tables.' );
+	$before_browsing = $wpdb->get_results( "SELECT option_name,option_value FROM {$wpdb->options} WHERE {$protected_where} ORDER BY option_name", ARRAY_A );
+	foreach ( array( 'start', 'feeds', 'preview', 'switch', 'done', 'invalid', array( 'invalid' ) ) as $step ) {
+		$_GET['step'] = $step;
+		ob_start();
+		Smash_Import_Admin::render_page();
+		$html = ob_get_clean();
+		$assert( str_contains( $html, 'shootcal-smash-walkthrough' ) && ! str_contains( $html, 'source-token' ), 'Walkthrough failed to render safely.' );
+		if ( 'start' === $step ) $assert( ! str_contains( $html, '<table' ) && str_contains( $html, 'Preserve settings' ), 'Intro exposed the catalog or omitted removed-plugin guidance.' );
+		if ( 'preview' === $step ) $assert( str_contains( $html, 'fixtureone' ) && ! str_contains( $html, 'name="deactivate"' ), 'Preview is missing cached output or allows early deactivation.' );
+		if ( 'feeds' === $step ) $assert( str_contains( $html, 'choices[12]' ) && ! str_contains( $html, 'shootcal_instagram_smash_switch' ), 'Feed choices expose the switch action.' );
+	}
+	$assert( $before_browsing === $wpdb->get_results( "SELECT option_name,option_value FROM {$wpdb->options} WHERE {$protected_where} ORDER BY option_name", ARRAY_A ), 'Browsing the walkthrough mutated protected state.' );
+	wp_set_current_user( 0 );
+	ob_start(); Smash_Import_Admin::render_page(); Smash_Import_Admin::render(); $anonymous = ob_get_clean();
+	$assert( '' === $anonymous, 'Unauthorized visitors could view the importer.' );
+	wp_set_current_user( (int) $admins[0]->ID );
+
+	// Retained source data can be imported and switched with no Smash Balloon files.
+	$assert( ! file_exists( WP_PLUGIN_DIR . '/instagram-feed/instagram-feed.php' ) && ! file_exists( WP_PLUGIN_DIR . '/instagram-feed-pro/instagram-feed.php' ), 'Removed-plugin fixture unexpectedly has Smash Balloon installed.' );
+	$assert( true === Smash_Import::switch( false, Smash_Import::fingerprint( Smash_Import::catalog() ) ), 'Retained data could not switch without Smash Balloon installed.' );
+	$renderer->register_compatibility();
+	$assert( str_contains( do_shortcode( '[instagram-feed feed="12"]' ), 'fixtureone' ), 'Unchanged legacy shortcode did not work after removed-plugin import.' );
+	$assert( true === Smash_Import::rollback(), 'Removed-plugin switch could not be undone.' );
+	remove_shortcode( 'instagram-feed' );
+
 	$plugin = 'instagram-feed/instagram-feed.php';
 	$fixture_file = WP_PLUGIN_DIR . '/' . $plugin;
 	$assert( ! file_exists( dirname( $fixture_file ) ), 'Refusing to replace a real Smash Balloon installation.' );
@@ -291,6 +328,7 @@ try {
 	}
 	$shortcode_tags = $initial_shortcode;
 	$_POST = $initial_post;
+	$_GET = $initial_get;
 	if ( null === $initial_method ) {
 		unset( $_SERVER['REQUEST_METHOD'] );
 	} else {
