@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -128,6 +128,10 @@ Service terms and privacy policies:
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
 == Changelog ==
+
+= 0.4.2 =
+* Keep carousel and video indicators above feed photos when a theme raises linked images on hover.
+* Isolate each feed tile’s stacking context without changing theme styles outside the feed.
 
 = 0.4.1 =
 * Move Smash Balloon import behind a single settings-page button and a four-step guided walkthrough.

@@ -12,6 +12,7 @@
 
 .shootcal-instagram-feed__item {
 	position: relative;
+	isolation: isolate;
 	box-sizing: border-box;
 	display: block;
 	overflow: hidden;
@@ -23,6 +24,9 @@
 }
 
 .shootcal-instagram-feed__image {
+	position: relative;
+	/* Keep theme image-hover z-index rules below the media-type badge. */
+	z-index: 0 !important;
 	display: block;
 	width: 100%;
 	height: 100%;
