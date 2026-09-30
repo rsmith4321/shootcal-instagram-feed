@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       ShootCal Social Feed
  * Description:       Display a lightweight, cached Instagram Business or Creator feed with exact caption hashtag filtering.
- * Version:           0.4.2
+ * Version:           0.5.0
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            ShootCal
@@ -20,7 +20,7 @@ namespace ShootCalInstagramFeed;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION       = '0.4.2';
+const VERSION       = '0.5.0';
 const SLUG          = 'shootcal-instagram-feed';
 const OPTION_KEY    = 'shootcal_instagram_feed_options';
 const CACHE_KEY     = 'shootcal_instagram_feed_cache';

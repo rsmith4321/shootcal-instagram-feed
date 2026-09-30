@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "sha256": "342caaf5505f370fa7f11f0a117263c872b9a8443b007a5c9efa522df886ed75",
+  "filters": [
+    [
+      "#Wedding, beach, WEDDING",
+      [
+        "wedding",
+        "beach"
+      ]
+    ],
+    [
+      "2026",
+      [
+        "2026"
+      ]
+    ],
+    [
+      "#Família",
+      [
+        "família"
+      ]
+    ],
+    [
+      "Straße, STRASSE",
+      [
+        "straße",
+        "strasse"
+      ]
+    ],
+    [
+      "bad-tag",
+      null
+    ],
+    [
+      "##tag",
+      null
+    ],
+    [
+      "",
+      []
+    ],
+    [
+      "weddingbeach",
+      [
+        "wedding",
+        "beach"
+      ]
+    ],
+    [
+      "﻿wedding",
+      null
+    ]
+  ]
+}

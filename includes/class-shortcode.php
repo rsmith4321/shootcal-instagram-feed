@@ -51,6 +51,7 @@ class Shortcode {
 				'columns'      => (int) $options['columns'],
 				'mobile_limit' => 0,
 				'follow'       => 'false',
+                'more'         => 'false',
 				'dynamic'      => 'false',
 				'class'        => '',
 			),
@@ -66,9 +67,10 @@ class Shortcode {
 		$hashtag        = implode( ',', $include_tags );
 		$exclude        = implode( ',', $exclude_tags );
 		$limit          = max( 1, min( 30, (int) $attributes['limit'] ) );
-		$columns        = max( 1, min( 6, (int) $attributes['columns'] ) );
+		$columns        = \ShootCal\Instagram\V1\FeedRules::columns( (int) $attributes['columns'] );
 		$mobile_limit   = max( 0, min( $limit, (int) $attributes['mobile_limit'] ) );
 		$show_follow    = self::attribute_is_true( $attributes['follow'] );
+        $show_more      = self::attribute_is_true( $attributes['more'] );
 		$dynamic        = ! $this->rendering_fallback && self::attribute_is_true( $attributes['dynamic'] );
 		$custom_classes = array();
 		$classes        = array( 'shootcal-instagram-feed' );
@@ -82,7 +84,7 @@ class Shortcode {
 
 		$cache = Feed_Store::cache_for_account( (string) $options['instagram_account_id'] );
 		$items = isset( $cache['items'] ) && is_array( $cache['items'] ) ? $cache['items'] : array();
-		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter_list( $items, $include_tags, $exclude_tags ), 0, $limit ) : array();
+		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter_list( $items, $include_tags, $exclude_tags ), 0, $show_more ? \ShootCal\Instagram\V1\FeedRules::MAX_ITEMS : $limit ) : array();
 
 		if ( $dynamic && $valid_hashtag ) {
 			Assets::enqueue_dynamic();
@@ -100,7 +102,7 @@ class Shortcode {
 				// A preset feed resolves live at request time, so a cached page
 				// picks up later admin edits. Only author-typed overrides ride along.
 				$loader_data = array( 'feed' => (string) $feed_id );
-				foreach ( array( 'hashtag', 'exclude', 'limit', 'columns', 'mobile-limit' => 'mobile_limit', 'follow' ) as $data_key => $attribute_key ) {
+				foreach ( array( 'hashtag', 'exclude', 'limit', 'columns', 'mobile-limit' => 'mobile_limit', 'follow', 'more' ) as $data_key => $attribute_key ) {
 					$data_key = is_string( $data_key ) ? $data_key : $attribute_key;
 					if ( isset( $author_raw[ $attribute_key ] ) && is_scalar( $author_raw[ $attribute_key ] ) ) {
 						$loader_data[ $data_key ] = (string) $author_raw[ $attribute_key ];
@@ -114,6 +116,7 @@ class Shortcode {
 					'columns'      => (string) $columns,
 					'mobile-limit' => (string) $mobile_limit,
 					'follow'       => $show_follow ? 'true' : 'false',
+                    'more'         => $show_more ? 'true' : 'false',
 				);
 			}
 			$loader_data['endpoint']   = rest_url( Rest_Controller::ROUTE );
@@ -153,6 +156,8 @@ class Shortcode {
 		}
 
 		Assets::enqueue();
+		if ( $show_more ) Assets::enqueue_dynamic();
+        $grid_id = wp_unique_id( 'shootcal-instagram-posts-' );
 		$tablet  = min( $columns, 3 );
 		$mobile  = min( $columns, 2 );
 		$account = isset( $cache['account']['username'] ) && is_string( $cache['account']['username'] ) ? $cache['account']['username'] : '';
@@ -162,9 +167,9 @@ class Shortcode {
 
 		ob_start();
 		?>
-		<div class="shootcal-instagram-feed-shell">
+		<div class="shootcal-instagram-feed-shell" <?php if ( $show_more ) : ?>data-scif-more="true" data-initial="<?php echo esc_attr( (string) $limit ); ?>" data-mobile-initial="<?php echo esc_attr( (string) $mobile_limit ); ?>"<?php endif; ?>>
 			<div
-				class="<?php echo esc_attr( implode( ' ', array_unique( $classes ) ) ); ?>"
+				id="<?php echo esc_attr( $grid_id ); ?>" class="<?php echo esc_attr( implode( ' ', array_unique( $classes ) ) ); ?>"
 				style="--scif-columns:<?php echo esc_attr( (string) $columns ); ?>;--scif-columns-tablet:<?php echo esc_attr( (string) $tablet ); ?>;--scif-columns-mobile:<?php echo esc_attr( (string) $mobile ); ?>"
 				<?php echo '' !== $hashtag ? 'data-hashtag="' . esc_attr( $hashtag ) . '"' : ''; ?>
 			>
@@ -194,7 +199,8 @@ class Shortcode {
 					$item_classes[] = 'shootcal-instagram-feed__item--mobile-hidden';
 				}
 				?>
-				<a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
+				<?php if ( $show_more && $item_index >= $limit ) : ?><template data-scif-deferred><?php endif; ?>
+                <a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
 					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-social-feed' ); ?></span>
@@ -202,8 +208,16 @@ class Shortcode {
 						<span class="shootcal-instagram-feed__type shootcal-instagram-feed__type--carousel" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5" stroke="currentColor" stroke-width="2"/><path d="M15.5 4.5H7A2.5 2.5 0 0 0 4.5 7v8.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
 					<?php endif; ?>
 				</a>
+                <?php if ( $show_more && $item_index >= $limit ) : ?></template><?php endif; ?>
 			<?php endforeach; ?>
 			</div>
+            <?php if ( $show_more ) : ?>
+                <div class="shootcal-instagram-feed__more">
+                    <button hidden type="button" class="shootcal-instagram-feed__more-button" aria-controls="<?php echo esc_attr( $grid_id ); ?>"><?php esc_html_e( 'View more', 'shootcal-social-feed' ); ?></button>
+                    <span class="shootcal-instagram-feed__announcement" role="status" aria-live="polite" data-message="<?php /* translators: 1: visible post count, 2: total cached matching posts. */
+                    esc_attr_e( 'Showing %1$d of %2$d Instagram posts.', 'shootcal-social-feed' ); ?>"></span>
+                </div>
+            <?php endif; ?>
 			<?php if ( $show_follow && '' !== $profile ) : ?>
 				<p class="shootcal-instagram-feed__follow">
 					<a class="shootcal-instagram-feed__follow-link" href="<?php echo esc_url( $profile ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Follow on Instagram', 'shootcal-social-feed' ); ?></a>

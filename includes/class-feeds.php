@@ -115,6 +115,7 @@ class Feeds {
 			'columns'      => (int) $feed['columns'],
 			'mobile_limit' => (int) $feed['mobile_limit'],
 			'follow'       => ! empty( $feed['follow'] ) ? 'true' : 'false',
+            'more'         => ! empty( $feed['more'] ) ? 'true' : 'false',
 			'dynamic'      => ! empty( $feed['dynamic'] ) ? 'true' : 'false',
 		);
 	}
@@ -142,10 +143,10 @@ class Feeds {
 			'hashtag'      => implode( ', ', $include ),
 			'exclude'      => implode( ', ', $exclude ),
 			'limit'        => max( 1, min( 30, $limit ) ),
-			'columns'      => max( 1, min( 6, isset( $feed['columns'] ) ? (int) $feed['columns'] : 3 ) ),
+			'columns'      => \ShootCal\Instagram\V1\FeedRules::columns( isset( $feed['columns'] ) ? (int) $feed['columns'] : 3 ),
 			'mobile_limit' => max( 0, min( 30, isset( $feed['mobile_limit'] ) ? (int) $feed['mobile_limit'] : 0 ) ),
 			'follow'       => ! empty( $feed['follow'] ),
 			'dynamic'      => ! empty( $feed['dynamic'] ),
-		);
+		) + ( array_key_exists( 'more', $feed ) ? array( 'more' => ! empty( $feed['more'] ) ) : array() );
 	}
 }

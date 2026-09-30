@@ -63,7 +63,8 @@ class Rest_Controller {
 						'default'           => 0,
 						'sanitize_callback' => 'absint',
 					),
-					'follow'       => array(
+					'more'         => array( 'default' => 'false', 'sanitize_callback' => 'sanitize_text_field' ),
+                    'follow'       => array(
 						'default'           => 'false',
 						'sanitize_callback' => 'sanitize_text_field',
 					),
@@ -82,7 +83,7 @@ class Rest_Controller {
 		// clamps and validates every value again.
 		$sent       = $request->get_query_params();
 		$attributes = array( 'dynamic' => 'false' );
-		foreach ( array( 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobile_limit', 'follow', 'class' ) as $key ) {
+		foreach ( array( 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobile_limit', 'follow', 'more', 'class' ) as $key ) {
 			if ( isset( $sent[ $key ] ) ) {
 				$attributes[ $key ] = $request->get_param( $key );
 			}

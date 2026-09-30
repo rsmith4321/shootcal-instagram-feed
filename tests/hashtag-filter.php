@@ -4,6 +4,7 @@
  */
 
 declare( strict_types=1 );
+require dirname( __DIR__ ) . '/shared/instagram-feed-core/verify.php';
 
 define( 'ABSPATH', __DIR__ . '/' );
 require_once dirname( __DIR__ ) . '/includes/class-hashtag-filter.php';

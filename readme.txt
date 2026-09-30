@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.4.2
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,10 @@ Features:
 * Exact, case-insensitive caption hashtag filtering with a single tag, any-of lists, and optional exclusions.
 * Saved feeds: name a filter set once in ShootCal Apps > Social Feed, paste `[shootcal_instagram_feed feed="1"]` anywhere, and later edits apply everywhere.
 * Shortcode-specific hashtags and display limits.
-* Optional five-desktop/four-mobile layout and account follow button.
+* One to six columns and initial images, with older saved display counts preserved.
+* Optional View more button reveals one responsive row at a time, up to 30 cached matching posts.
+* Additional images load when revealed, without a new Instagram request.
+* Optional phone display count and account follow button.
 * Optional post-load refresh that bypasses full-page caches while reading only WordPress's saved feed.
 * Scheduled cache refresh with a last-known-good fallback.
 * One-click Facebook authorization through ShootCal, plus manual-token fallback.
@@ -128,6 +131,12 @@ Service terms and privacy policies:
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
 == Changelog ==
+
+= 0.5.0 =
+* Preserve entire photos inside square tiles, and protect media badges from theme hover stacking.
+* Add optional View more, responsive row expansion, and matching ShootCal feed controls.
+* Share the small hashtag filtering library and preserve existing feed settings.
+
 
 = 0.4.2 =
 * Keep carousel and video indicators above feed photos when a theme raises linked images on hover.

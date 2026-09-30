@@ -74,6 +74,7 @@ class Settings {
 			$fields[ $field ] = isset( $_POST[ $field ] ) ? sanitize_text_field( wp_unslash( $_POST[ $field ] ) ) : '';
 		}
 		$fields['follow']  = isset( $_POST['follow'] );
+        $fields['more'] = isset( $_POST['more'] );
 		$fields['dynamic'] = isset( $_POST['dynamic'] );
 
 		$saved = Feeds::save( $feed_id, $fields );
@@ -416,6 +417,7 @@ class Settings {
 					'columns'      => 5,
 					'mobile_limit' => 4,
 					'follow'       => true,
+                    'more'         => false,
 					'dynamic'      => true,
 				);
 			}
@@ -475,9 +477,9 @@ class Settings {
 						<td><input type="text" name="exclude" id="shootcal-feed-exclude" value="<?php echo esc_attr( (string) $editing_feed['exclude'] ); ?>" class="large-text" placeholder="#wedding" /></td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="shootcal-feed-limit"><?php esc_html_e( 'Posts to display', 'shootcal-social-feed' ); ?></label></th>
+						<th scope="row"><label for="shootcal-feed-limit"><?php esc_html_e( 'Initial images', 'shootcal-social-feed' ); ?></label></th>
 						<td>
-							<input type="number" name="limit" id="shootcal-feed-limit" value="<?php echo esc_attr( (string) $editing_feed['limit'] ); ?>" min="1" max="30" class="small-text" />
+							<input type="number" name="limit" id="shootcal-feed-limit" value="<?php echo esc_attr( (string) $editing_feed['limit'] ); ?>" min="1" max="<?php echo esc_attr( (string) max( 6, (int) $editing_feed['limit'] ) ); ?>" class="small-text" />
 							<label style="margin-left:1em;" for="shootcal-feed-columns"><?php esc_html_e( 'Desktop columns', 'shootcal-social-feed' ); ?></label>
 							<input type="number" name="columns" id="shootcal-feed-columns" value="<?php echo esc_attr( (string) $editing_feed['columns'] ); ?>" min="1" max="6" class="small-text" />
 							<label style="margin-left:1em;" for="shootcal-feed-mobile-limit"><?php esc_html_e( 'Posts on phones (0 = all)', 'shootcal-social-feed' ); ?></label>
@@ -487,7 +489,8 @@ class Settings {
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Options', 'shootcal-social-feed' ); ?></th>
 						<td>
-							<label><input type="checkbox" name="follow" <?php checked( ! empty( $editing_feed['follow'] ) ); ?> /> <?php esc_html_e( 'Show a Follow on Instagram button', 'shootcal-social-feed' ); ?></label><br />
+							<label><input type="checkbox" name="more" <?php checked( ! empty( $editing_feed['more'] ) ); ?> /> <?php esc_html_e( 'Show View more to reveal one additional row at a time (up to 30 cached posts)', 'shootcal-social-feed' ); ?></label><br />
+                            <label><input type="checkbox" name="follow" <?php checked( ! empty( $editing_feed['follow'] ) ); ?> /> <?php esc_html_e( 'Show a Follow on Instagram button', 'shootcal-social-feed' ); ?></label><br />
 							<label><input type="checkbox" name="dynamic" <?php checked( ! empty( $editing_feed['dynamic'] ) ); ?> /> <?php esc_html_e( 'Load the feed after the page (recommended: page caching never shows a stale feed, and images stay lazy-loaded)', 'shootcal-social-feed' ); ?></label>
 						</td>
 					</tr>
@@ -527,7 +530,7 @@ class Settings {
 						<td><input type="text" name="<?php echo esc_attr( OPTION_KEY ); ?>[default_hashtag]" id="shootcal-instagram-hashtag" value="<?php echo esc_attr( (string) $options['default_hashtag'] ); ?>" class="regular-text" placeholder="weddings" /><p class="description"><?php esc_html_e( 'Optional. The leading # is not required. Matching is exact and case-insensitive against captions from your own account.', 'shootcal-social-feed' ); ?></p></td>
 					</tr>
 					<tr>
-						<th scope="row"><label for="shootcal-instagram-limit"><?php esc_html_e( 'Posts to display', 'shootcal-social-feed' ); ?></label></th>
+						<th scope="row"><label for="shootcal-instagram-limit"><?php esc_html_e( 'Initial images', 'shootcal-social-feed' ); ?></label></th>
 						<td><input type="number" name="<?php echo esc_attr( OPTION_KEY ); ?>[display_limit]" id="shootcal-instagram-limit" value="<?php echo esc_attr( (string) $options['display_limit'] ); ?>" min="1" max="30" class="small-text" /></td>
 					</tr>
 					<tr>

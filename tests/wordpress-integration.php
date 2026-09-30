@@ -372,6 +372,24 @@ try {
 		throw new RuntimeException( 'Deleting a feed preset failed.' );
 	}
 
+    // View more uses only the current local cache, with inert markup beyond
+    // the initial count. The same setting survives presets and the REST loader.
+    $more_id = Feeds::save( 0, array( 'name' => 'Progressive fixture', 'hashtag' => '', 'exclude' => '', 'limit' => 1, 'columns' => 1, 'more' => true, 'dynamic' => true ) );
+    if ( is_wp_error( $more_id ) || true !== Feeds::get( $more_id )['more'] ) throw new RuntimeException( 'View more was not saved.' );
+    $more_html = ( new Shortcode() )->render( array( 'feed' => $more_id, 'dynamic' => 'false' ) );
+    $initial_html = preg_replace( '~<template[^>]*>.*?</template>~s', '', $more_html );
+    if ( 1 !== substr_count( $initial_html, '<img ' ) || 2 !== substr_count( $more_html, '<template data-scif-deferred>' )
+        || ! str_contains( $more_html, '--scif-columns:1' ) || ! str_contains( $more_html, 'View more' ) ) {
+        throw new RuntimeException( 'Progressive HTML mounted extra images or lost its controls.' );
+    }
+    $more_request = new WP_REST_Request( 'GET', '/' . Rest_Controller::ROUTE );
+    $more_request->set_query_params( array( 'feed' => (string) $more_id ) );
+    $more_payload = ( new Rest_Controller() )->get_feed( $more_request )->get_data();
+    if ( 2 !== substr_count( $more_payload['html'], '<template data-scif-deferred>' ) ) throw new RuntimeException( 'REST lost saved progressive settings.' );
+    $static_html = ( new Shortcode() )->render( array( 'feed' => $more_id, 'dynamic' => 'false', 'more' => 'false' ) );
+    if ( str_contains( $static_html, '<template' ) || str_contains( $static_html, 'View more' ) || 1 !== substr_count( $static_html, '<img ' ) ) throw new RuntimeException( 'Static override changed legacy rendering.' );
+    Feeds::delete( (int) $more_id );
+
 	$mode       = 'outage';
 	$result     = $store->refresh();
 	if ( ! is_wp_error( $result ) || $good_cache !== Feed_Store::cache() ) {

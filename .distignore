@@ -3,3 +3,6 @@
 .DS_Store
 tests
 *.zip
+
+AGENTS.md
+shared/instagram-feed-core/verify.php

@@ -24,6 +24,7 @@
 }
 
 .shootcal-instagram-feed__image {
+	transform: none !important;
 	position: relative;
 	/* Keep theme image-hover z-index rules below the media-type badge. */
 	z-index: 0 !important;
@@ -31,13 +32,12 @@
 	width: 100%;
 	height: 100%;
 	max-width: none;
-	object-fit: cover;
-	transition: transform 180ms ease, opacity 180ms ease;
+	object-fit: contain;
+	transition: opacity 180ms ease;
 }
 
 .shootcal-instagram-feed__item:hover .shootcal-instagram-feed__image,
 .shootcal-instagram-feed__item:focus-visible .shootcal-instagram-feed__image {
-	transform: scale(1.025);
 	opacity: 0.92;
 }
 
@@ -112,7 +112,7 @@
 	outline-offset: 2px;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
 	.shootcal-instagram-feed {
 		grid-template-columns: repeat(var(--scif-columns-tablet, 3), minmax(0, 1fr));
 	}
@@ -133,3 +133,10 @@
 		transition: none;
 	}
 }
+
+.shootcal-instagram-feed__more { margin: 0; text-align: center; }
+.shootcal-instagram-feed__more:has(button:not([hidden])) { margin-top: 16px; }
+.shootcal-instagram-feed__more-button { min-height: 44px; padding: 10px 18px; border: 1px solid currentColor; border-radius: 4px; font: inherit; cursor: pointer; }
+.shootcal-instagram-feed__more-button[hidden] { display: none; }
+.shootcal-instagram-feed__more-button:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.shootcal-instagram-feed__announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

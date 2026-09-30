@@ -9,6 +9,7 @@
 	var NEAR_VIEWPORT = '600px 0px';
 
 	var stylesheetPromise;
+    var nextGridId = 0;
 
 	function waitForStylesheet( link, loader ) {
 		return new Promise( function ( resolve ) {
@@ -85,6 +86,61 @@
 		} );
 	}
 
+    function initializeMore( root, restoredCount ) {
+        root.querySelectorAll( '[data-scif-more="true"]' ).forEach( function ( shell ) {
+            if ( shell.dataset.moreReady ) return;
+            shell.dataset.moreReady = 'true';
+            var grid = shell.querySelector( '.shootcal-instagram-feed' );
+            var button = shell.querySelector( '.shootcal-instagram-feed__more-button' );
+            var status = shell.querySelector( '[role="status"]' );
+            if ( ! grid || ! button ) return;
+            // Separate REST responses can each contain the same wp_unique_id.
+            // Allocate in the live document so every button controls its own grid.
+            var gridId;
+            do { gridId = 'scif-posts-' + ( ++nextGridId ); } while ( document.getElementById( gridId ) );
+            grid.id = gridId;
+            button.setAttribute( 'aria-controls', gridId );
+            // Preserve the authored phone count, but let View more reveal those
+            // hidden entries too. Inert templates do not request their images.
+            if ( window.matchMedia( '(max-width: 520px)' ).matches ) {
+                grid.querySelectorAll( '.shootcal-instagram-feed__item--mobile-hidden' ).forEach( function ( item ) {
+                    var template = document.createElement( 'template' );
+                    template.dataset.scifDeferred = '';
+                    item.replaceWith( template );
+                    template.content.appendChild( item );
+                } );
+            }
+            grid.querySelectorAll( '.shootcal-instagram-feed__item--mobile-hidden' ).forEach( function ( item ) {
+                item.classList.remove( 'shootcal-instagram-feed__item--mobile-hidden' );
+            } );
+            var pending = function () { return Array.prototype.slice.call( grid.querySelectorAll( 'template[data-scif-deferred]' ) ); };
+            var shown = function () { return grid.querySelectorAll( 'a.shootcal-instagram-feed__item' ).length; };
+            var total = shown() + pending().length;
+            var reveal = function ( count ) {
+                var first;
+                pending().slice( 0, count ).forEach( function ( template ) {
+                    var item = template.content.querySelector( 'a' );
+                    item.classList.remove( 'shootcal-instagram-feed__item--mobile-hidden' );
+                    if ( ! first ) first = item;
+                    template.replaceWith( template.content );
+                    loadImagesNow( item );
+                } );
+                button.hidden = pending().length === 0;
+                return first;
+            };
+            reveal( Math.max( 0, Math.min( 30, restoredCount || 0 ) - shown() ) );
+            if ( restoredCount ) shell.dataset.scifVisible = String( shown() );
+            button.addEventListener( 'click', function () {
+                var tracks = window.getComputedStyle( grid ).gridTemplateColumns;
+                var columns = tracks && tracks !== 'none' && tracks.indexOf( 'repeat(' ) === -1 ? tracks.trim().split( /\s+/ ).length : 1;
+                var first = reveal( columns );
+                shell.dataset.scifVisible = String( shown() );
+                if ( status ) status.textContent = status.dataset.message.replace( '%1$d', shown() ).replace( '%2$d', total );
+                if ( first ) first.focus( { preventScroll: true } );
+            } );
+        } );
+    }
+
 	function loadFeed( loader ) {
 		if ( loader.dataset.loading === 'true' || loader.dataset.loaded === 'true' ) {
 			return;
@@ -105,7 +161,7 @@
 			return;
 		}
 
-		[ 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobileLimit', 'follow', 'class' ].forEach( function ( key ) {
+		[ 'feed', 'hashtag', 'exclude', 'limit', 'columns', 'mobileLimit', 'follow', 'more', 'class' ].forEach( function ( key ) {
 			var value = loader.dataset[ key ];
 			if ( undefined !== value && '' !== value ) {
 				var parameter = 'mobileLimit' === key ? 'mobile_limit' : key;
@@ -130,8 +186,11 @@
 			} )
 			.then( function ( payload ) {
 				if ( payload && 'string' === typeof payload.html && '' !== payload.html.trim() ) {
-					loader.innerHTML = payload.html;
+					var previousShell = loader.querySelector( '[data-scif-more]' );
+                    var previousCount = Number( previousShell && previousShell.dataset.scifVisible ) || 0;
+                    loader.innerHTML = payload.html;
 					loader.dataset.loaded = 'true';
+                    initializeMore( loader, previousCount );
 					loadImagesNow( loader );
 				}
 			} )
@@ -171,6 +230,7 @@
 	}
 
 	function initialize() {
+        initializeMore( document );
 		observeLoaders( Array.prototype.slice.call( document.querySelectorAll( '.shootcal-instagram-feed-loader' ) ) );
 	}
 
