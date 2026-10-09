@@ -201,7 +201,8 @@ class Shortcode {
 				?>
 				<?php if ( $show_more && $item_index >= $limit ) : ?><template data-scif-deferred><?php endif; ?>
                 <a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
-					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image_url ); ?>" alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
+					<?php $image = Image_Cache::attributes( (string) ( $cache['account']['id'] ?? '' ), $item, $columns ); ?>
+					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image['src'] ); ?>"<?php if ( ! empty( $image['srcset'] ) ) : ?> srcset="<?php echo esc_attr( $image['srcset'] ); ?>" sizes="<?php echo esc_attr( $image['sizes'] ); ?>" width="<?php echo esc_attr( (string) $image['width'] ); ?>" height="<?php echo esc_attr( (string) $image['height'] ); ?>"<?php endif; ?> alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-social-feed' ); ?></span>
 					<?php elseif ( 'CAROUSEL_ALBUM' === $media_type ) : ?>
