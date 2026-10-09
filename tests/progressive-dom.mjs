@@ -63,3 +63,18 @@ assert.equal(dynamic.window.document.querySelectorAll('img').length, 12);
 assert.equal(requestCount, 1, 'clicks add no requests beyond the existing initial cache refresh');
 dynamic.window.close();
 console.log('WordPress delayed-refresh race: 4 assertions passed');
+
+// A wide viewport must not select an oversized source for a narrow feed container.
+const sizing = new JSDOM(`<!doctype html><body>${fixtures[3]}</body>`, {runScripts:'outside-only',url:'http://localhost/'});
+let tileWidth=263;
+sizing.window.matchMedia=()=>({matches:false});
+sizing.window.getComputedStyle=()=>({gridTemplateColumns:'263px 263px 263px'});
+sizing.window.HTMLElement.prototype.getBoundingClientRect=function(){return {width:tileWidth};};
+for(const template of sizing.window.document.querySelectorAll('template'))for(const img of template.content.querySelectorAll('img')){img.srcset='https://example.test/320.jpg 320w, https://example.test/640.jpg 640w';img.sizes='auto, 20vw';}
+sizing.window.eval(script);sizing.window.document.dispatchEvent(new sizing.window.Event('DOMContentLoaded'));
+sizing.window.document.querySelector('button').click();
+const revealed=sizing.window.document.querySelectorAll('img')[6];
+assert.equal(revealed.sizes,'263px','activation measures the actual tile before eager loading');
+tileWidth=170;sizing.window.dispatchEvent(new sizing.window.Event('resize'));
+assert.equal(revealed.sizes,'170px','responsive sizing follows viewport changes');
+sizing.window.close();console.log('WordPress responsive source selection: 2 assertions passed');

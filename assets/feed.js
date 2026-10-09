@@ -80,8 +80,24 @@
 		return stylesheetPromise;
 	}
 
+	function sizeResponsiveImage( image ) {
+		if ( ! image.srcset ) return;
+		var width = Math.ceil( image.getBoundingClientRect().width );
+		// sizes=auto applies only while loading=lazy. Preserve the measured tile
+		// width before this feed deliberately activates an image eagerly.
+		if ( width > 0 && image.sizes !== width + 'px' ) image.sizes = width + 'px';
+	}
+	var imageSizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver( function ( entries ) {
+		entries.forEach( function ( entry ) { sizeResponsiveImage( entry.target ); } );
+	} ) : null;
+	window.addEventListener( 'resize', function () {
+		document.querySelectorAll( '.shootcal-instagram-feed__image[srcset]' ).forEach( sizeResponsiveImage );
+	} );
+
 	function loadImagesNow( loader ) {
 		loader.querySelectorAll( 'img[loading="lazy"]' ).forEach( function ( image ) {
+			sizeResponsiveImage( image );
+			if ( imageSizeObserver && image.srcset ) imageSizeObserver.observe( image );
 			image.loading = 'eager';
 		} );
 	}

@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.6.0
+Stable tag: 0.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -133,6 +133,9 @@ For help with connection or feed display, contact support@shootcal.com. Include 
 Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. The original CDN URL remains the fallback. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
+
+= 0.6.1 =
+* Measure the actual feed tile before eager image activation so wide screens and narrow page containers select appropriately sized thumbnails. Responsive selection follows container and viewport resizing.
 
 = 0.6.0 =
 * Prepare smaller responsive feed images in bounded background batches, preserving original photos and cached View more behavior.
