@@ -1,3 +1,16 @@
+/*
+ * The feed styles its own controls so it looks finished on any theme.
+ * Themes can restyle the buttons through these custom properties.
+ */
+.shootcal-instagram-feed-shell,
+.shootcal-instagram-feed-loader {
+	--scif-button-font: 600 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--scif-button-radius: 999px;
+	--scif-follow-background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+	--scif-on-follow: #fff;
+	--scif-outline: rgb(128 128 128 / 45%);
+}
+
 .shootcal-instagram-feed-shell,
 .shootcal-instagram-feed-loader {
 	width: 100%;
@@ -83,35 +96,6 @@
 	font-size: 0.9375rem;
 }
 
-.shootcal-instagram-feed__follow {
-	margin: 10px 0 0;
-	text-align: center;
-}
-
-.shootcal-instagram-feed__follow-link {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 38px;
-	padding: 8px 14px;
-	border-radius: 4px;
-	background: #408bd1;
-	color: #fff;
-	font: 600 14px/1.2 system-ui, sans-serif;
-	text-decoration: none;
-}
-
-.shootcal-instagram-feed__follow-link:hover,
-.shootcal-instagram-feed__follow-link:focus-visible {
-	background: #2f73b2;
-	color: #fff;
-}
-
-.shootcal-instagram-feed__follow-link:focus-visible {
-	outline: 3px solid currentColor;
-	outline-offset: 2px;
-}
-
 @media (max-width: 900px) {
 	.shootcal-instagram-feed {
 		grid-template-columns: repeat(var(--scif-columns-tablet, 3), minmax(0, 1fr));
@@ -134,9 +118,99 @@
 	}
 }
 
-.shootcal-instagram-feed__more { margin: 0; text-align: center; }
-.shootcal-instagram-feed__more:has(button:not([hidden])) { margin-top: 16px; }
-.shootcal-instagram-feed__more-button { min-height: 44px; padding: 10px 18px; border: 1px solid currentColor; border-radius: 4px; font: inherit; cursor: pointer; }
-.shootcal-instagram-feed__more-button[hidden] { display: none; }
-.shootcal-instagram-feed__more-button:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
 .shootcal-instagram-feed__announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Shared button base: resets theme button and link rules the feed doesn't want. */
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button,
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link {
+	-webkit-appearance: none;
+	appearance: none;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	margin: 0;
+	padding: 0 24px;
+	border-radius: var(--scif-button-radius);
+	box-shadow: none;
+	font: var(--scif-button-font);
+	letter-spacing: 0.01em;
+	text-align: center;
+	text-decoration: none !important;
+	text-transform: none;
+	background-image: none !important;
+	cursor: pointer;
+	transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms ease;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button:active,
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:active {
+	transform: scale(0.97);
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button:focus-visible,
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:focus-visible {
+	outline: 3px solid #408bd1;
+	outline-offset: 3px;
+}
+
+/* View more: quiet outline pill in the surrounding text colour, so it works on light and dark pages. */
+.shootcal-instagram-feed__more { margin: 0; text-align: center; }
+.shootcal-instagram-feed__more:has(button:not([hidden])) { margin-top: 18px; }
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button {
+	border: 1px solid var(--scif-outline);
+	background-color: transparent;
+	color: inherit;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button:hover {
+	border-color: currentColor;
+	background-color: rgb(128 128 128 / 12%);
+	color: inherit;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button[hidden] { display: none; }
+
+/* Follow: Instagram-gradient pill with the Instagram glyph; readable on light and dark pages. */
+.shootcal-instagram-feed__follow {
+	margin: 12px 0 0;
+	text-align: center;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link {
+	border: 0;
+	background-color: #dc2743;
+	background-image: var(--scif-follow-background) !important;
+	color: var(--scif-on-follow);
+	transition: filter 200ms ease, transform 200ms ease;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link::before {
+	content: "";
+	width: 18px;
+	height: 18px;
+	flex: 0 0 18px;
+	background-color: currentColor;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='5'/%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Ccircle cx='17.4' cy='6.6' r='1' fill='%23000' stroke='none'/%3E%3C/svg%3E") center / contain no-repeat;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='5'/%3E%3Ccircle cx='12' cy='12' r='4.2'/%3E%3Ccircle cx='17.4' cy='6.6' r='1' fill='%23000' stroke='none'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:hover,
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:focus-visible,
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:visited {
+	color: var(--scif-on-follow);
+}
+
+.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link:hover {
+	filter: brightness(1.08) saturate(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button,
+	.shootcal-instagram-feed-shell .shootcal-instagram-feed__follow-link {
+		transition: none;
+	}
+}
