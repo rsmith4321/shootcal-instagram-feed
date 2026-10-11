@@ -194,6 +194,13 @@ class Shortcode {
 						wp_date( get_option( 'date_format' ), $timestamp )
 					)
 					: __( 'View this post on Instagram', 'shootcal-social-feed' );
+				if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) {
+					/* translators: %s: existing Instagram post account/date label. */
+					$label = sprintf( __( '%s (video)', 'shootcal-social-feed' ), $label );
+				} elseif ( 'CAROUSEL_ALBUM' === $media_type ) {
+					/* translators: %s: existing Instagram post account/date label. */
+					$label = sprintf( __( '%s (multiple photos)', 'shootcal-social-feed' ), $label );
+				}
 				$item_classes = array( 'shootcal-instagram-feed__item' );
 				if ( 0 < $mobile_limit && (int) $item_index >= $mobile_limit ) {
 					$item_classes[] = 'shootcal-instagram-feed__item--mobile-hidden';
