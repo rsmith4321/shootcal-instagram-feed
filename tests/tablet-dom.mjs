@@ -1,0 +1,40 @@
+// Standalone synthetic PHP rendering plus cached-only real DOM runtime; no WordPress store.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+const { JSDOM } = await import(process.env.JSDOM_MODULE || 'jsdom');
+const root = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
+const rendered = spawnSync('php', [`${root}/tests/shortcode-media-test.php`, root, '--tablet-fixtures'], { encoding: 'utf8' });
+assert.equal(rendered.status, 0, rendered.stderr);
+const fixtures = JSON.parse(rendered.stdout);
+const script = readFileSync(`${root}/assets/feed.js`, 'utf8');
+const css = readFileSync(`${root}/assets/feed.css`, 'utf8');
+const selector = css.match(/(\.shootcal-instagram-feed\[data-tablet-columns="3"\][^{]+)\s*\{/)[1].trim();
+let assertions = 1;
+for (const columns of [1, 2, 3, 5]) {
+  const dom = new JSDOM(fixtures[columns], { runScripts: 'outside-only', url: 'https://site.test/' });
+  const win = dom.window;
+  let fetches = 0;
+  win.fetch = () => { fetches++; throw new Error('cached reveal must not fetch'); };
+  win.matchMedia = () => ({ matches: true });
+  win.getComputedStyle = (grid) => ({ gridTemplateColumns: Array(grid.matches(selector) ? 2 : Math.min(columns, 3)).fill('150px').join(' ') });
+  win.eval(script);
+  win.document.dispatchEvent(new win.Event('DOMContentLoaded'));
+  const grid = win.document.querySelector('.shootcal-instagram-feed');
+  assert.equal(grid.querySelectorAll('a').length, 4);
+  assert.equal(grid.matches(selector), columns >= 3, 'four mounted tiles balance only when effective tablet columns are three; templates are ignored');
+  assert.equal(grid.style.getPropertyValue('--scif-columns'), String(columns));
+  assert.equal(grid.style.getPropertyValue('--scif-columns-tablet'), String(Math.min(columns, 3)));
+  win.document.querySelector('button').click();
+  assert.equal(grid.querySelectorAll('a').length, columns === 1 ? 5 : 6);
+  assert.equal(grid.matches(selector), false, 'configured tablet layout resumes after cached reveal');
+  assert.equal(fetches, 0);
+  assertions += 7;
+  dom.window.close();
+  const staticDom = new JSDOM(fixtures[`static-${columns}`]);
+  assert.equal(staticDom.window.document.querySelector('.shootcal-instagram-feed').matches(selector), columns >= 3, 'short static feed balances without JavaScript');
+  assertions++;
+  staticDom.window.close();
+}
+console.log(`WordPress tablet balance: ${assertions} assertions passed`);

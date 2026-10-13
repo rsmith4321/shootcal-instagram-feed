@@ -171,6 +171,7 @@ class Shortcode {
 			<div
 				id="<?php echo esc_attr( $grid_id ); ?>" class="<?php echo esc_attr( implode( ' ', array_unique( $classes ) ) ); ?>"
 				style="--scif-columns:<?php echo esc_attr( (string) $columns ); ?>;--scif-columns-tablet:<?php echo esc_attr( (string) $tablet ); ?>;--scif-columns-mobile:<?php echo esc_attr( (string) $mobile ); ?>"
+				data-tablet-columns="<?php echo esc_attr( (string) $tablet ); ?>"
 				<?php echo '' !== $hashtag ? 'data-hashtag="' . esc_attr( $hashtag ) . '"' : ''; ?>
 			>
 			<?php foreach ( $items as $item_index => $item ) : ?>

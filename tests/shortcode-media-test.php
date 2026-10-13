@@ -57,7 +57,7 @@ namespace ShootCalInstagramFeed {
     final class Image_Cache {
         public static int $calls = 0;
         public static function attributes(string $account, array $item, int $columns): array {
-            if ($account !== 'synthetic-account' || $columns !== 1) throw new \RuntimeException('Unexpected image arguments');
+            if ($account !== 'synthetic-account' || ($columns !== 1 && (!defined('SCIF_TABLET_FIXTURE') || $columns < 1 || $columns > 6))) throw new \RuntimeException('Unexpected image arguments');
             ++self::$calls;
             return ['src' => $item['image_url'], 'srcset' => ''];
         }
@@ -65,7 +65,7 @@ namespace ShootCalInstagramFeed {
     final class Assets {
         public static int $calls = 0;
         public static function enqueue(): void { ++self::$calls; }
-        public static function enqueue_dynamic(): void { throw new \RuntimeException('Unexpected asset/dynamic path'); }
+        public static function enqueue_dynamic(): void { if (!defined('SCIF_TABLET_FIXTURE')) throw new \RuntimeException('Unexpected asset/dynamic path'); }
     }
     final class Feeds {
         public static function get(int $id): ?array { throw new \RuntimeException('Unexpected saved-feed path'); }
@@ -75,12 +75,28 @@ namespace ShootCalInstagramFeed {
 
 namespace {
     // Explicit paths only: caller must pass the exact reviewed plugin root, no discovery/fallback.
-    if ($argc !== 2) { fwrite(STDERR, "Usage: php fixture.php /exact/plugin/root\n"); exit(2); }
+    if ($argc !== 2 && !($argc === 3 && $argv[2] === '--tablet-fixtures')) { fwrite(STDERR, "Usage: php fixture.php /exact/plugin/root [--tablet-fixtures]\n"); exit(2); }
     $root = rtrim($argv[1], '/');
     if (!is_dir($root)) { fwrite(STDERR, "Missing explicit plugin root\n"); exit(2); }
     define('ABSPATH', __DIR__ . '/inert-no-wordpress/');
     require $root . '/shared/instagram-feed-core/FeedRules.php';
     require $root . '/includes/class-shortcode.php';
+
+    if (($argv[2] ?? '') === '--tablet-fixtures') {
+        define('SCIF_TABLET_FIXTURE', true);
+        \ShootCalInstagramFeed\Feed_Store::$cache = ['account' => ['id' => 'synthetic-account', 'username' => 'fixture.account'], 'items' => []];
+        for ($i = 0; $i < 12; $i++) {
+            \ShootCalInstagramFeed\Feed_Store::$cache['items'][] = ['media_type' => 'IMAGE', 'caption' => 'Synthetic tile',
+                'image_url' => 'https://images.invalid/tile-' . $i . '.jpg', 'permalink' => 'https://www.instagram.com/p/synthetic_' . $i . '/'];
+        }
+        $fixtures = [];
+        foreach ([1, 2, 3, 5] as $columns) {
+            $fixtures[(string)$columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
+            $fixtures['static-' . $columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 4, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'false', 'follow' => 'false']);
+        }
+        echo json_encode($fixtures, JSON_THROW_ON_ERROR);
+        exit(0);
+    }
 
     $checks = 0; $failures = 0;
     $check = static function (bool $ok, string $case, string $message) use (&$checks, &$failures): void {
