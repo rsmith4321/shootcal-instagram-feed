@@ -6,10 +6,18 @@ and the WordPress plugin. It performs no network, filesystem, or database IO.
 No package server or runtime Composer install is needed.
 
 Edit the canonical source, update its version and SHA-256 in `contract.json`,
-then run `php bin/sync-instagram-core.php GALLERIES_CHECKOUT WORDPRESS_CHECKOUT`.
+then run `php bin/sync-instagram-core.php GALLERIES_CHECKOUT WORDPRESS_CHECKOUT [STATIC_SITE_CHECKOUT]`.
 Before release run the same command with `--check`. Each consumer's regression
 gate also validates the vendored source against the pinned contract and fixtures.
 The shared code is GPL-2.0-or-later; platform application code stays separate.
+
+The hook-free React renderer, cached-only DOM reveal runtime and JavaScript
+rules live in `web/`; see its README for the public API and real DOM tests.
+The sync command also vendors these web files into Galleries
+`react-header/src/vendor/instagram-feed-core` and the optional static site's
+`src/vendor/instagram-feed-core`. WordPress receives only the existing PHP
+package, never the React runtime. Every target records the package version and
+SHA-256 file hashes in `SOURCE.json`; `--check` verifies both bytes and records.
 
 Every Instagram feature change must assess both products and update their tests
 in the same workstream. Required matching behavior:

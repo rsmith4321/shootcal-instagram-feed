@@ -1,0 +1,11 @@
+{
+    "package": "instagram-feed-core/php",
+    "version": "1.0.0",
+    "source": "shootcal-backend/packages/instagram-feed-core",
+    "files": {
+        "FeedRules.php": "342caaf5505f370fa7f11f0a117263c872b9a8443b007a5c9efa522df886ed75",
+        "README.md": "cf885ade5d17dd02d191a11febb8a0cf69f1fdb4b568bd81e080932bf73dfa47",
+        "contract.json": "0ed0877fd22e00083c8a7b5a2ec6bfe03fabcc10e53889dfa139c4e13b901e14",
+        "verify.php": "468e1d719d1ff46e134a3f12a60f03c0a725405350e86b6ff5ed88352b67e969"
+    }
+}
