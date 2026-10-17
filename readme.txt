@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.6.4
+Stable tag: 0.6.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,7 +34,7 @@ Features:
 * Manual refresh and connection status in ShootCal Apps > Social Feed.
 * Preview saved Smash Balloon feed imports, map existing shortcode IDs, and explicitly switch with an undo option.
 
-Requirements: a WordPress site using HTTPS and an Instagram Business or Creator account linked to a Facebook Page that you can manage. The Connect with Facebook flow uses ShootCal's Meta app, so you do not need to create your own developer app. Advanced users can enter their own numeric Instagram account ID and Page access token instead. The plugin uses the official Instagram API with Facebook Login. It does not scrape Instagram or support Personal accounts.
+Requirements: a WordPress site using HTTPS and a free Instagram Creator or Business account linked to a Facebook Page that you can manage. The Connect with Facebook flow uses ShootCal's Meta app, so you do not need to create your own developer app. Advanced users can enter their own numeric Instagram account ID and Page access token instead. The plugin uses the official Instagram API with Facebook Login. It does not scrape Instagram or support Personal accounts.
 
 == Installation ==
 
@@ -71,6 +71,10 @@ If the surrounding page is held in a full-page cache, add `dynamic="true"`. The 
 `[shootcal_instagram_feed hashtag="wedding" limit="5" columns="5" mobile_limit="4" follow="true" dynamic="true"]`
 
 == Frequently Asked Questions ==
+
+= Can I use a personal Instagram account? =
+
+No. Instagram only lets apps show posts from Creator or Business accounts, so a personal account cannot connect. Switching is free: open your profile in the Instagram app, tap the menu, then tap Account type and tools and Switch to professional account. You can switch back at any time. The Connect with Facebook flow also needs that account linked to a Facebook Page you manage.
 
 = Can I migrate from Smash Balloon? =
 
@@ -133,6 +137,9 @@ For help with connection or feed display, contact support@shootcal.com. Include 
 Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. The original CDN URL remains the fallback. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
+
+= 0.6.5 =
+* The Connect Instagram screen now explains that a free Instagram Creator or Business account is needed, and how to switch.
 
 = 0.6.4 =
 * Four posts now form a balanced two-column grid on tablets.

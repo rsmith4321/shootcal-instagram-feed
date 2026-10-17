@@ -379,6 +379,14 @@ class Settings {
 
 			<h2><?php esc_html_e( 'Connect Instagram', 'shootcal-social-feed' ); ?></h2>
 			<p style="max-width:55em;"><?php esc_html_e( 'Use your Facebook login to choose a linked professional Instagram account. ShootCal handles the authorization, then this WordPress site stores the resulting token locally in encrypted form.', 'shootcal-social-feed' ); ?></p>
+			<?php // Same wording as ShootCal Websites' Instagram card. The Facebook Page sentence belongs to the Facebook Login route only; drop it when a direct Instagram login is offered. ?>
+			<div class="notice notice-info inline shootcal-instagram-account-note" style="max-width:55em;">
+				<p>
+					<strong><?php esc_html_e( 'A free Instagram Creator or Business account is needed.', 'shootcal-social-feed' ); ?></strong>
+					<?php esc_html_e( 'Instagram only lets apps show posts from these accounts, so a personal account cannot connect. To switch, open your profile in the Instagram app, tap the menu, then tap Account type and tools and Switch to professional account. It is free, and you can switch back at any time.', 'shootcal-social-feed' ); ?>
+					<?php esc_html_e( 'This connection uses Facebook, so your Instagram account also needs to be linked to a Facebook Page you manage. Sign in with the personal Facebook account that manages that Page.', 'shootcal-social-feed' ); ?>
+				</p>
+			</div>
 			<?php if ( is_array( $selection ) && ! empty( $selection['choices'] ) ) : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="max-width:55em;">
 					<input type="hidden" name="action" value="shootcal_instagram_oauth_select" />
