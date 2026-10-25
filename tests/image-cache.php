@@ -18,10 +18,17 @@ class ShootCal_Image_Cache_Test_Imagick extends WP_Image_Editor_Imagick {
 class ShootCal_Image_Cache_Test_Editor extends WP_Image_Editor_GD {
  public static int $loads=0;
  public static bool $oversize=false;
+ public static string $failure='';
+ public static array $written=[];
  public function load(){++self::$loads;return parent::load();}
  public function save($destfilename=null,$mime_type=null){
   $saved=parent::save($destfilename,$mime_type);
   if(self::$oversize&&!is_wp_error($saved)){$handle=fopen($saved['path'],'ab');ftruncate($handle,8*1024*1024+1);fclose($handle);}
+  if(self::$failure!==''&&!is_wp_error($saved)){
+   self::$written[]=$saved['path'];file_put_contents($saved['path'].'.unrelated','preserve unrelated bytes');
+   if(self::$failure==='throw')throw new RuntimeException('Fixture encoder failed after output');
+   return new WP_Error('fixture_encoder_failure','Fixture encoder failed after output');
+  }
   return $saved;
  }
 }
@@ -171,6 +178,24 @@ try {
   image_check((glob(get_temp_dir().'shootcal-feed-image*')?:[])===$format_temps,'failed filtered conversion removes actual rewritten output temporary');
  }finally{remove_filter('image_editor_output_format',$format_webp);shootcal_instagram_restore_test_options([Image_Cache::OPTION=>$format_manifest]);$manifest->setValue(null,null);}
  $download_fixture=$fixture;$calls_before=$calls;$loads=ShootCal_Image_Cache_Test_Editor::$loads;
+ // Core can remap JPEG to PNG/GIF as well as accepted WebP outputs. Failures
+ // after a write must remove the exact owned stem files, including on throw.
+ foreach(['image/webp','image/png','image/gif']as$mapped)foreach(['error','throw']as$failure){
+  $mapping=static function(array $formats)use($mapped):array{$formats['image/jpeg']=$mapped;return $formats;};
+  $beforeTemps=glob(get_temp_dir().'shootcal-feed-image*')?:[];$key=hash('sha256','mapped-failure-'.$mapped.'-'.$failure);
+  $preserved=$u['basedir'].'/shootcal-social-feed/'.$key.'-1280.webp';$files[]=$preserved;copy($webp,$preserved);$preservedHash=hash_file('sha256',$preserved);
+  ShootCal_Image_Cache_Test_Editor::$failure=$failure;ShootCal_Image_Cache_Test_Editor::$written=[];add_filter('image_editor_output_format',$mapping);
+  $threw=false;$result=[];
+  try{$result=$build->invoke(new Image_Cache,$key,$item['image_url']);}catch(RuntimeException $error){$threw=$error->getMessage()==='Fixture encoder failed after output';}
+  finally{remove_filter('image_editor_output_format',$mapping);ShootCal_Image_Cache_Test_Editor::$failure='';}
+  $written=ShootCal_Image_Cache_Test_Editor::$written;
+  image_check(count($written)===1&&($failure==='throw'?$threw:$result===[]),'remapped '.$mapped.' '.$failure.' exercises a real written encoder output');
+  image_check(!is_file($written[0])&&hash_file('sha256',$preserved)===$preservedHash,'remapped '.$mapped.' '.$failure.' removes partial temporary and retains completed destination');
+  image_check(is_file($written[0].'.unrelated')&&file_get_contents($written[0].'.unrelated')==='preserve unrelated bytes','remapped '.$mapped.' '.$failure.' preserves unrelated same-prefix files');
+  unlink($written[0].'.unrelated');
+  image_check((glob(get_temp_dir().'shootcal-feed-image*')?:[])===$beforeTemps,'remapped '.$mapped.' '.$failure.' leaves no owned source or derivative temporary');
+ }
+ $calls_before=$calls;$loads=ShootCal_Image_Cache_Test_Editor::$loads;
  $expired=$build->invoke(new Image_Cache,hash('sha256','fix3-expired-deadline'),$item['image_url'],hrtime(true)/1e9-1);
  image_check($expired===[]&&$calls===$calls_before&&ShootCal_Image_Cache_Test_Editor::$loads===$loads,'expired job deadline admits no HTTP request or decoder');
  $request_delay_us=20000;

@@ -215,7 +215,13 @@ class Image_Cache {
 					if ( isset( $widths[ $dimensions['width'] ] ) ) { continue; }
 					// Stage beside the bounded source temporary; failed builds never delete
 					// a previously completed derivative or leave partial output behind.
-					$stage = $temp . '-' . $edge . '.jpg'; $created[] = $stage;
+					$stem = $temp . '-' . $edge;
+					// Register every supported mapping before save: an editor may
+					// write a remapped output and then return WP_Error or throw.
+					// Include all core image extensions: output filters can select
+					// PNG/GIF/etc. even though this feed accepts fewer final formats.
+					foreach ( array( 'jpg', 'jpeg', 'jpe', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'avif', 'ico', 'heic', 'heif', 'heics', 'heifs' ) as $format ) { $created[] = $stem . '.' . $format; }
+					$stage = $stem . '.jpg';
 					$saved = $editor->save( $stage, 'image/jpeg' );
 					if ( is_wp_error( $saved ) ) { return array(); }
 					// Core output-format filters may change .jpg to .webp/.avif. Only
