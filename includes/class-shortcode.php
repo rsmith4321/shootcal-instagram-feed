@@ -84,7 +84,17 @@ class Shortcode {
 
 		$cache = Feed_Store::cache_for_account( (string) $options['instagram_account_id'] );
 		$items = isset( $cache['items'] ) && is_array( $cache['items'] ) ? $cache['items'] : array();
-		$items = $valid_hashtag ? array_slice( Hashtag_Filter::filter_list( $items, $include_tags, $exclude_tags ), 0, $show_more ? \ShootCal\Instagram\V1\FeedRules::MAX_ITEMS : $limit ) : array();
+		$matched = $valid_hashtag ? Hashtag_Filter::filter_list( $items, $include_tags, $exclude_tags ) : array();
+		$items = array();
+		foreach ( $matched as $item ) {
+			if ( ! is_array( $item ) ) { continue; }
+			$image = Image_Cache::attributes( (string) ( $cache['account']['id'] ?? '' ), $item, $columns );
+			if ( ! $image ) { continue; }
+			$items[] = array( 'item' => $item, 'image' => $image );
+		}
+		// Readiness precedes limits and progressive indices, so missing files never
+		// leave empty anchors or consume an initial/deferred post slot.
+		$items = array_slice( $items, 0, $show_more ? \ShootCal\Instagram\V1\FeedRules::MAX_ITEMS : $limit );
 
 		if ( $dynamic && $valid_hashtag ) {
 			Assets::enqueue_dynamic();
@@ -174,19 +184,16 @@ class Shortcode {
 				data-tablet-columns="<?php echo esc_attr( (string) $tablet ); ?>"
 				<?php echo '' !== $hashtag ? 'data-hashtag="' . esc_attr( $hashtag ) . '"' : ''; ?>
 			>
-			<?php foreach ( $items as $item_index => $item ) : ?>
+			<?php foreach ( $items as $item_index => $presentation ) : ?>
 				<?php
-				if ( ! is_array( $item ) ) {
-					continue;
-				}
+				$item = $presentation['item'];
+				$image = $presentation['image'];
 				$caption    = isset( $item['caption'] ) && is_string( $item['caption'] ) ? $item['caption'] : '';
 				$media_type   = isset( $item['media_type'] ) && is_string( $item['media_type'] ) ? $item['media_type'] : 'IMAGE';
 				$product_type = isset( $item['product_type'] ) && is_string( $item['product_type'] ) ? $item['product_type'] : '';
-				$image_url  = isset( $item['image_url'] ) && is_string( $item['image_url'] ) ? $item['image_url'] : '';
 				$permalink  = isset( $item['permalink'] ) && is_string( $item['permalink'] ) ? $item['permalink'] : '';
 				$timestamp  = isset( $item['timestamp'] ) && is_string( $item['timestamp'] ) ? strtotime( $item['timestamp'] ) : false;
-				$alt        = trim( wp_strip_all_tags( $caption ) );
-				$alt        = '' !== $alt ? wp_trim_words( $alt, 18, '&hellip;' ) : __( 'Instagram post', 'shootcal-social-feed' );
+				$alt        = self::caption_alt( $caption );
 				$label      = $timestamp
 					? sprintf(
 						/* translators: 1: account username. 2: post date. */
@@ -209,7 +216,6 @@ class Shortcode {
 				?>
 				<?php if ( $show_more && $item_index >= $limit ) : ?><template data-scif-deferred><?php endif; ?>
                 <a class="<?php echo esc_attr( implode( ' ', $item_classes ) ); ?>" href="<?php echo esc_url( $permalink ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php echo esc_attr( $label ); ?>">
-					<?php $image = Image_Cache::attributes( (string) ( $cache['account']['id'] ?? '' ), $item, $columns ); ?>
 					<img class="shootcal-instagram-feed__image skip-lazy" src="<?php echo esc_url( $image['src'] ); ?>"<?php if ( ! empty( $image['srcset'] ) ) : ?> srcset="<?php echo esc_attr( $image['srcset'] ); ?>" sizes="<?php echo esc_attr( $image['sizes'] ); ?>" width="<?php echo esc_attr( (string) $image['width'] ); ?>" height="<?php echo esc_attr( (string) $image['height'] ); ?>"<?php endif; ?> alt="<?php echo esc_attr( $alt ); ?>" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-skip-lazy="1" />
 					<?php if ( 'VIDEO' === $media_type || 'REELS' === $product_type ) : ?>
 						<span class="shootcal-instagram-feed__type" aria-hidden="true"><?php esc_html_e( 'Video', 'shootcal-social-feed' ); ?></span>
@@ -236,6 +242,20 @@ class Shortcode {
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	/** Plain caption excerpt; keep normalization aligned with the backend producer. */
+	private static function caption_alt( string $caption ): string {
+		$fallback = __( 'Instagram post', 'shootcal-social-feed' );
+		if ( strlen( $caption ) > 65535 || 1 !== preg_match( '//u', $caption ) ) { return $fallback; }
+		$text = html_entity_decode( $caption, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = preg_replace( '#<(script|style)\b[^>]*>.*?(?:</\1\s*>|$)#is', '', $text ) ?? '';
+		$text = str_replace( array( '<', '>' ), '', strip_tags( $text ) );
+		$text = trim( preg_replace( '/[\s\p{Z}\p{C}]+/u', ' ', $text ) ?? '' );
+		if ( '' === $text ) { return $fallback; }
+		$words = preg_split( '/\s+/u', $text ) ?: array();
+		$text = implode( ' ', array_slice( $words, 0, 18 ) ) . ( count( $words ) > 18 ? '…' : '' );
+		return mb_strlen( $text, 'UTF-8' ) > 2048 ? mb_substr( $text, 0, 2047, 'UTF-8' ) . '…' : $text;
 	}
 
 	/**

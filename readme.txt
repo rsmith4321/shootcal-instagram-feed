@@ -134,11 +134,12 @@ Service terms and privacy policies:
 
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
-Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. The original CDN URL remains the fallback. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
+Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. Posts appear after their local thumbnails are ready. Missing thumbnails wait for the next background refresh instead of loading an image from Instagram in the visitor's browser. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
 
 = 0.6.6 =
+* Initial posts and View more now show only locally cached images, so visitors do not request images from Instagram.
 * Feeds now use the phone layout through 640px and the tablet layout through 1024px, with four posts staying balanced in two columns on tablets.
 * Video labels are easier to read on phones and tablets.
 

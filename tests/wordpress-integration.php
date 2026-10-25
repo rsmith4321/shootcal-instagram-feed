@@ -11,6 +11,7 @@ if ( ! defined( 'WP_CLI' ) || ! WP_CLI ) {
 }
 
 require_once __DIR__ . '/restore-options.php';
+require_once __DIR__ . '/completed-image-fixture.php';
 
 use ShootCalInstagramFeed\Api_Client;
 use ShootCalInstagramFeed\Config;
@@ -214,6 +215,10 @@ try {
 	}
 
 	$good_cache = Feed_Store::cache();
+	$image_fixture = shootcal_completed_image_fixture($good_cache);
+	$image_filter = static fn() => $image_fixture['manifest'];
+	add_filter('pre_option_' . \ShootCalInstagramFeed\Image_Cache::OPTION, $image_filter);
+	(new ReflectionProperty(\ShootCalInstagramFeed\Image_Cache::class, 'manifest'))->setValue(null, null);
 	$rendered   = ( new Shortcode() )->render(
 		array(
 			'hashtag'      => 'wedding',
@@ -468,6 +473,8 @@ try {
 
 	echo "wordpress-integration: ok\n";
 } finally {
+	if (isset($image_filter)) remove_filter('pre_option_' . \ShootCalInstagramFeed\Image_Cache::OPTION, $image_filter);
+	if (isset($image_fixture)) shootcal_completed_image_cleanup($image_fixture);
 	remove_filter( 'pre_http_request', $http_mock, 10 );
 
 	shootcal_instagram_restore_test_options( array(

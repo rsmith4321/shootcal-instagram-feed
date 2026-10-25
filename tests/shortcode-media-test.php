@@ -20,7 +20,7 @@ namespace {
     function esc_html_e(string $value, string $domain): void { echo esc_html(__($value, $domain)); }
     function esc_attr_e(string $value, string $domain): void { echo esc_attr(__($value, $domain)); }
     function wp_unique_id(string $prefix): string { static $id = 0; return $prefix . ++$id; }
-    function wp_strip_all_tags(string $value): string { return strip_tags($value); }
+    function wp_strip_all_tags(string $value): string { return strip_tags((string)preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $value)); }
     function wp_trim_words(string $value, int $limit, string $suffix): string {
         $words = preg_split('/\s+/', trim($value));
         return count($words) <= $limit ? $value : implode(' ', array_slice($words, 0, $limit)) . $suffix;
@@ -171,6 +171,28 @@ namespace {
         $check($xpath->query($grid . '/a')->length === 5 && $xpath->query($grid . '/template')->length === 2, 'no-JS', 'initial posts mounted and extra cached posts inert');
         $check($xpath->query($grid . '/a[contains(@class,"mobile-hidden")]')->length === 1, 'no-JS', 'authored mobile limit marks fifth post hidden');
         $check($xpath->query('//a[@class="shootcal-instagram-feed__follow-link"]')->length === 0, 'no-JS', 'profile opt-out retained');
+        foreach ([
+            ['<script>private()</script><style>.hidden{}</style><b>Portrait</b>   by  the beach', 'Portrait by the beach'],
+            [implode(' ', array_fill(0, 19, 'portrait')), implode(' ', array_fill(0, 18, 'portrait')) . '…'],
+            [str_repeat('猫', 2050), str_repeat('猫', 2047) . '…'],
+            ['<script>private()</script>', 'Instagram post'],
+            ['A &amp; B', 'A & B'],
+            ['&lt;script&gt;private()&lt;/script&gt;Portrait', 'Portrait'],
+            ['&lt;style&gt;private{}&lt;/style&gt;Portrait', 'Portrait'],
+            ['&lt;b&gt;Portrait&lt;/b&gt;', 'Portrait'],
+            ['Love <3', 'Love'],
+            ['Love &lt;3', 'Love'],
+            ["One\u{2003}two\u{200b}three\u{00a0}four", 'One two three four'],
+            ["Portrait\xff", 'Instagram post'],
+            ['<script>unclosed private text', 'Instagram post'],
+            [str_repeat('a', 65536), 'Instagram post'],
+        ] as [$caption, $expected_alt]) {
+            \ShootCalInstagramFeed\Feed_Store::$cache['items'] = [array_replace($item, ['caption' => $caption])];
+            $html = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 1, 'columns' => 1]);
+            @$document->loadHTML('<?xml encoding="UTF-8"><html><body>' . $html . '</body></html>');
+            $image = (new \DOMXPath($document))->query('//img')->item(0);
+            $check($image?->getAttribute('alt') === $expected_alt, 'caption', 'caption normalization matches producer: ' . substr(json_encode($caption, JSON_INVALID_UTF8_SUBSTITUTE), 0, 70));
+        }
     } catch (\Throwable $error) {
         fwrite(STDERR, 'STOP unexpected fixture path: ' . $error->getMessage() . "\n"); exit(2);
     }

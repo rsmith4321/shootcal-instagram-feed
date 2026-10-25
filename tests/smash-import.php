@@ -20,6 +20,7 @@ use const ShootCalInstagramFeed\OPTION_KEY;
 use const ShootCalInstagramFeed\STATUS_KEY;
 
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
+require_once __DIR__ . '/completed-image-fixture.php';
 
 global $wpdb, $shortcode_tags;
 $assertions         = 0;
@@ -106,6 +107,10 @@ try {
 			array( 'id' => 'fixture-two', 'caption' => 'Two #family', 'media_type' => 'IMAGE', 'image_url' => 'https://example.test/two.jpg', 'permalink' => 'https://www.instagram.com/p/fixturetwo/' ),
 		),
 	), false );
+	$image_fixture = shootcal_completed_image_fixture(get_option(CACHE_KEY));
+	$image_filter = static fn() => $image_fixture['manifest'];
+	add_filter('pre_option_' . \ShootCalInstagramFeed\Image_Cache::OPTION, $image_filter);
+	(new ReflectionProperty(\ShootCalInstagramFeed\Image_Cache::class, 'manifest'))->setValue(null, null);
 	update_option( STATUS_KEY, array( 'last_success' => time() ), false );
 	$existing = array( 'name' => 'Existing curated feed', 'hashtag' => '', 'exclude' => '', 'limit' => 5, 'columns' => 5, 'mobile_limit' => 4, 'follow' => true, 'dynamic' => true );
 	update_option( FEEDS_KEY, array( 6 => $existing, 12 => array_merge( $existing, array( 'name' => 'An unrelated existing ID 12' ) ) ), false );
@@ -297,6 +302,8 @@ try {
 	echo 'smash-import: ok (' . $assertions . " assertions; auth, catalog, ID mapping, rollback, coexistence, write failure, no provider calls)\n";
 
 } finally {
+	if (isset($image_filter)) remove_filter('pre_option_' . \ShootCalInstagramFeed\Image_Cache::OPTION, $image_filter);
+	if (isset($image_fixture)) shootcal_completed_image_cleanup($image_fixture);
 	remove_filter( 'pre_http_request', $deny_http, PHP_INT_MAX );
 	remove_filter( 'wp_die_handler', $die_filter );
 	foreach ( $owned_posts as $post_id ) {

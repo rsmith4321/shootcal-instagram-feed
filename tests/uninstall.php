@@ -29,6 +29,8 @@ $expected_options = array(
 	'shootcal_instagram_feed_feeds',
 	'shootcal_instagram_feed_cache',
 	'shootcal_instagram_feed_status',
+	'shootcal_instagram_feed_images',
+	'shootcal_instagram_feed_images_lock',
 	'shootcal_instagram_feed_refresh_lock',
 	'shootcal_instagram_feed_oauth',
 	'shootcal_instagram_feed_smash_import',
@@ -38,8 +40,8 @@ $expected_options = array(
 if ( $expected_options !== $deleted_options ) {
 	throw new RuntimeException( 'Uninstall did not delete the exact plugin option set.' );
 }
-if ( array( 'shootcal_instagram_feed_refresh' ) !== $cleared_hooks ) {
-	throw new RuntimeException( 'Uninstall did not clear the refresh schedule.' );
+if ( array( 'shootcal_instagram_feed_refresh', 'shootcal_instagram_feed_images' ) !== $cleared_hooks ) {
+	throw new RuntimeException( 'Uninstall did not clear the exact metadata and image schedule set.' );
 }
 
 echo "uninstall: ok\n";
