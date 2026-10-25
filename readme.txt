@@ -134,7 +134,7 @@ Service terms and privacy policies:
 
 For help with connection or feed display, contact support@shootcal.com. Include your WordPress and plugin versions and a description of the issue. Never send your access token or Facebook password.
 
-Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. Posts appear after their local thumbnails are ready. Missing thumbnails wait for the next background refresh instead of loading an image from Instagram in the visitor's browser. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
+Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. Posts appear after their local thumbnails are ready. Missing thumbnails wait for the next background refresh instead of loading an image from Instagram in the visitor's browser. Only still JPEG, PNG and WebP thumbnails within a 40-million-pixel decoded budget are processed. Animated PNG/WebP and all GIF files are skipped before image decoding. Each job handles at most four images, decodes each accepted image once, and retains at most 32 MiB of new derivatives. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
 
