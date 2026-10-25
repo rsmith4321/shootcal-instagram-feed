@@ -24,6 +24,11 @@ try {
  image_check(Image_Cache::attributes($account,$item,5)===['src'=>$item['image_url']]&&$calls===0,'cold rendering uses original with zero image requests');
  (new Image_Cache)->run();$a=Image_Cache::attributes($account,$item,5);
  image_check($calls===1&&!empty($a['srcset']),'one background download creates responsive sources');
+ foreach ([1=>[100,100,100],2=>[50,50,50],3=>[50,34,34],4=>[50,34,25],5=>[50,34,20],6=>[50,34,17]] as $columns=>$widths) {
+  [$phone,$tablet,$desktop]=$widths;
+  image_check(Image_Cache::attributes($account,$item,$columns)['sizes']==="auto, (max-width: 640px) {$phone}vw, (max-width: 1024px) {$tablet}vw, {$desktop}vw",'responsive sizes match phone and tablet boundaries for '.$columns.' columns');
+ }
+
  $m=get_option(Image_Cache::OPTION);$variants=reset($m['items'])['variants'];$u=wp_upload_dir();
  foreach($variants as $v){$path=$u['basedir'].'/shootcal-social-feed/'.$v['file'];$files[]=$path;$size=getimagesize($path);image_check($size[0]===$v['width']&&$size[1]===$v['height']&&abs($size[0]/$size[1]-1.6)<.01,'derived dimensions preserve original aspect ratio');}
  image_check(count($variants)===3&&$a['width']===640,'320/640/1280 sizes and useful fallback');

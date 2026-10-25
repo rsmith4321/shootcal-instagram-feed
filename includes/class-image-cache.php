@@ -64,7 +64,7 @@ class Image_Cache {
 		return array(
 			'src' => $default['url'], 'width' => $default['width'], 'height' => $default['height'],
 			'srcset' => implode( ', ', array_map( static fn( array $v ): string => $v['url'] . ' ' . $v['width'] . 'w', $variants ) ),
-			'sizes' => 'auto, (max-width: 520px) ' . ceil( 100 / min( 2, $columns ) ) . 'vw, (max-width: 900px) ' . ceil( 100 / min( 3, $columns ) ) . 'vw, ' . ceil( 100 / $columns ) . 'vw',
+			'sizes' => 'auto, (max-width: 640px) ' . ceil( 100 / min( 2, $columns ) ) . 'vw, (max-width: 1024px) ' . ceil( 100 / min( 3, $columns ) ) . 'vw, ' . ceil( 100 / $columns ) . 'vw',
 		);
 	}
 

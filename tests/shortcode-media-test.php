@@ -75,25 +75,33 @@ namespace ShootCalInstagramFeed {
 
 namespace {
     // Explicit paths only: caller must pass the exact reviewed plugin root, no discovery/fallback.
-    if ($argc !== 2 && !($argc === 3 && $argv[2] === '--tablet-fixtures')) { fwrite(STDERR, "Usage: php fixture.php /exact/plugin/root [--tablet-fixtures]\n"); exit(2); }
+    if ($argc !== 2 && !($argc === 3 && in_array($argv[2], ['--tablet-fixtures', '--progressive-fixtures'], true))) { fwrite(STDERR, "Usage: php fixture.php /exact/plugin/root [--tablet-fixtures|--progressive-fixtures]\n"); exit(2); }
     $root = rtrim($argv[1], '/');
     if (!is_dir($root)) { fwrite(STDERR, "Missing explicit plugin root\n"); exit(2); }
     define('ABSPATH', __DIR__ . '/inert-no-wordpress/');
     require $root . '/shared/instagram-feed-core/FeedRules.php';
     require $root . '/includes/class-shortcode.php';
 
-    if (($argv[2] ?? '') === '--tablet-fixtures') {
+    if (in_array($argv[2] ?? '', ['--tablet-fixtures', '--progressive-fixtures'], true)) {
         define('SCIF_TABLET_FIXTURE', true);
         \ShootCalInstagramFeed\Feed_Store::$cache = ['account' => ['id' => 'synthetic-account', 'username' => 'fixture.account'], 'items' => []];
-        for ($i = 0; $i < 12; $i++) {
-            \ShootCalInstagramFeed\Feed_Store::$cache['items'][] = ['media_type' => 'IMAGE', 'caption' => 'Synthetic tile',
-                'image_url' => 'https://images.invalid/tile-' . $i . '.jpg', 'permalink' => 'https://www.instagram.com/p/synthetic_' . $i . '/'];
+        for ($i = 1; $i <= 30; $i++) {
+            \ShootCalInstagramFeed\Feed_Store::$cache['items'][] = ['media_type' => $i === 1 ? 'VIDEO' : ($i === 2 ? 'CAROUSEL_ALBUM' : 'IMAGE'), 'caption' => 'Synthetic tile',
+                'image_url' => 'https://images.invalid/tile-' . $i . '.jpg', 'permalink' => 'https://www.instagram.com/p/Preview' . $i . '/'];
         }
         $fixtures = [];
-        foreach ([1, 2, 3, 5] as $columns) {
+        foreach ([1, 2, 3, 4, 5, 6] as $columns) {
             $fixtures[(string)$columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
+            $fixtures['four-' . $columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 4, 'mobile_limit' => 4, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
             $fixtures['static-' . $columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 4, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'false', 'follow' => 'false']);
         }
+        if (($argv[2] ?? '') === '--progressive-fixtures') {
+            foreach ([1, 2, 3, 4, 5, 6] as $columns) {
+                $fixtures[(string)$columns] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 6, 'columns' => $columns, 'dynamic' => 'false', 'more' => 'true']);
+            }
+        }
+        $fixtures['phone'] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true']);
+        $fixtures['no-follow'] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
         echo json_encode($fixtures, JSON_THROW_ON_ERROR);
         exit(0);
     }
@@ -132,11 +140,37 @@ namespace {
             $check(($badge !== null) === $indicator, $case, 'media indicator presence');
             $check($case === 'IMAGE' ? $badge === null : ($case === 'CAROUSEL_ALBUM' ? str_contains($badge ?? '', '<svg') : str_contains($badge ?? '', '>Video</span>')), $case, 'media indicator content');
             $check($badge === null || str_contains($badge, 'aria-hidden="true"'), $case, 'present badge decorative');
+            $document = new \DOMDocument();
+            @$document->loadHTML('<!doctype html><html><body>' . $html . '</body></html>');
+            $xpath = new \DOMXPath($document);
+            $post = $xpath->query('//a[contains(concat(" ", normalize-space(@class), " "), " shootcal-instagram-feed__item ")]')->item(0);
+            $check($post instanceof \DOMElement && trim($post->getAttribute('aria-label')) !== '', $case, 'no-JS DOM post has an accessible name');
+            $check($post?->getAttribute('target') === '_blank' && $post?->getAttribute('rel') === 'noopener noreferrer', $case, 'no-JS DOM post target and rel');
+            $check($xpath->query('//span[@aria-hidden="true"]')->length === ($indicator ? 1 : 0), $case, 'no-JS DOM media indicator is decorative');
             $check(\ShootCalInstagramFeed\Assets::$calls === 1, $case, 'inert asset enqueue only');
             $check(\ShootCalInstagramFeed\Image_Cache::$calls === 1, $case, 'inert thumbnail adapter once');
             $check(\ShootCalInstagramFeed\Feed_Store::$calls === 1, $case, 'synthetic cache once');
             echo ($failures === $beforeFailures ? 'PASS ' : 'FAIL ') . $case . "\n";
         }
+        define('SCIF_TABLET_FIXTURE', true);
+        $html = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 1, 'columns' => 1, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'true']);
+        $document = new \DOMDocument();
+        @$document->loadHTML('<!doctype html><html><body>' . $html . '</body></html>');
+        $xpath = new \DOMXPath($document);
+        $follow = $xpath->query('//a[@class="shootcal-instagram-feed__follow-link"]')->item(0);
+        $check($follow?->textContent === 'Follow on Instagram' && $follow?->getAttribute('href') === 'https://www.instagram.com/fixture.account/', 'no-JS', 'requested named profile link');
+        $check($follow?->getAttribute('target') === '_blank' && $follow?->getAttribute('rel') === 'noopener noreferrer', 'no-JS', 'profile target and rel match enhanced output');
+        $button = $xpath->query('//button')->item(0);
+        $check($button instanceof \DOMElement && $button->hasAttribute('hidden') && trim($button->textContent) === 'View more', 'no-JS', 'View more remains hidden until enhancement');
+        $item = \ShootCalInstagramFeed\Feed_Store::$cache['items'][0];
+        \ShootCalInstagramFeed\Feed_Store::$cache['items'] = array_fill(0, 7, $item);
+        $html = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
+        @$document->loadHTML('<!doctype html><html><body>' . $html . '</body></html>');
+        $xpath = new \DOMXPath($document);
+        $grid = '//div[contains(concat(" ", normalize-space(@class), " "), " shootcal-instagram-feed ")]';
+        $check($xpath->query($grid . '/a')->length === 5 && $xpath->query($grid . '/template')->length === 2, 'no-JS', 'initial posts mounted and extra cached posts inert');
+        $check($xpath->query($grid . '/a[contains(@class,"mobile-hidden")]')->length === 1, 'no-JS', 'authored mobile limit marks fifth post hidden');
+        $check($xpath->query('//a[@class="shootcal-instagram-feed__follow-link"]')->length === 0, 'no-JS', 'profile opt-out retained');
     } catch (\Throwable $error) {
         fwrite(STDERR, 'STOP unexpected fixture path: ' . $error->getMessage() . "\n"); exit(2);
     }

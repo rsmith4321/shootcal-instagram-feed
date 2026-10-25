@@ -118,7 +118,7 @@
             button.setAttribute( 'aria-controls', gridId );
             // Preserve the authored phone count, but let View more reveal those
             // hidden entries too. Inert templates do not request their images.
-            if ( window.matchMedia( '(max-width: 520px)' ).matches ) {
+            if ( window.matchMedia( '(max-width: 640px)' ).matches ) {
                 grid.querySelectorAll( '.shootcal-instagram-feed__item--mobile-hidden' ).forEach( function ( item ) {
                     var template = document.createElement( 'template' );
                     template.dataset.scifDeferred = '';

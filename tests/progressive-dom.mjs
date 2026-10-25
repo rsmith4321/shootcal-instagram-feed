@@ -1,8 +1,15 @@
-// Run after progressive-fixture.php; uses the installed local QA jsdom runtime.
+// Synthetic shortcode rendering and cached-only runtime; no WordPress store required.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const { JSDOM } = await import(process.env.JSDOM_MODULE || 'jsdom');
-const fixtures = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+const require = createRequire('/Volumes/Recent Pictures SSD/Xcode/Development/ShootCal/shootcal-web/react/package.json');
+const { JSDOM } = process.env.JSDOM_MODULE ? await import(process.env.JSDOM_MODULE) : require('jsdom');
+const root = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
+const rendered = process.argv[2] ? null : spawnSync('php', [`${root}/tests/shortcode-media-test.php`, root, '--progressive-fixtures'], { encoding: 'utf8' });
+if (rendered) assert.equal(rendered.status, 0, rendered.stderr);
+const fixtures = JSON.parse(rendered ? rendered.stdout : readFileSync(process.argv[2], 'utf8'));
 const script = readFileSync(new URL('../assets/feed.js', import.meta.url), 'utf8');
 let assertions = 0;
 for (const columns of [1, 2, 3, 4, 5, 6]) {
