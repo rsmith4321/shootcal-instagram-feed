@@ -226,6 +226,9 @@ class Shortcode {
                 <?php if ( $show_more && $item_index >= $limit ) : ?></template><?php endif; ?>
 			<?php endforeach; ?>
 			</div>
+			<?php $has_follow = $show_follow && '' !== $profile; ?>
+			<?php if ( $show_more || $has_follow ) : ?>
+			<div class="shootcal-instagram-feed__actions">
             <?php if ( $show_more ) : ?>
                 <div class="shootcal-instagram-feed__more">
                     <button hidden type="button" class="shootcal-instagram-feed__more-button" aria-controls="<?php echo esc_attr( $grid_id ); ?>"><?php esc_html_e( 'View more', 'shootcal-social-feed' ); ?></button>
@@ -233,10 +236,12 @@ class Shortcode {
                     esc_attr_e( 'Showing %1$d of %2$d Instagram posts.', 'shootcal-social-feed' ); ?>"></span>
                 </div>
             <?php endif; ?>
-			<?php if ( $show_follow && '' !== $profile ) : ?>
+			<?php if ( $has_follow ) : ?>
 				<p class="shootcal-instagram-feed__follow">
 					<a class="shootcal-instagram-feed__follow-link" href="<?php echo esc_url( $profile ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Follow on Instagram', 'shootcal-social-feed' ); ?></a>
 				</p>
+			<?php endif; ?>
+			</div>
 			<?php endif; ?>
 		</div>
 		<?php

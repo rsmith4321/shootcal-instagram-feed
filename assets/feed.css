@@ -9,6 +9,9 @@
 	--scif-follow-background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
 	--scif-on-follow: #fff;
 	--scif-outline: rgb(128 128 128 / 45%);
+	--scif-tile-background: #eee;
+	--scif-tile-border: 1px solid rgb(0 0 0 / 12%);
+	--scif-tile-radius: 0;
 }
 
 .shootcal-instagram-feed-shell,
@@ -30,21 +33,25 @@
 	display: block;
 	overflow: hidden;
 	aspect-ratio: 1;
-	border: 1px solid rgb(0 0 0 / 12%);
-	background: #eee;
+	border: var(--scif-tile-border);
+	border-radius: var(--scif-tile-radius);
+	background: var(--scif-tile-background);
 	color: #fff;
 	text-decoration: none;
 }
 
-.shootcal-instagram-feed__image {
+/* Themes often set img { height: auto } at higher specificity; the photo must
+   still fill the square tile so landscape posts sit centred, not at the top. */
+.shootcal-instagram-feed__item > .shootcal-instagram-feed__image {
 	transform: none !important;
 	position: relative;
 	/* Keep theme image-hover z-index rules below the media-type badge. */
 	z-index: 0 !important;
 	display: block;
-	width: 100%;
-	height: 100%;
+	width: 100% !important;
+	height: 100% !important;
 	max-width: none;
+	margin: 0;
 	object-fit: contain;
 	transition: opacity 180ms ease;
 }
@@ -169,9 +176,20 @@
 	outline-offset: 3px;
 }
 
+/* View more and Follow share one centred row and wrap on narrow screens. */
+.shootcal-instagram-feed__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 20px;
+}
+
+/* The wrapper adds no box, so a hidden View more leaves Follow centred. */
+.shootcal-instagram-feed__more { display: contents; }
+
 /* View more: quiet outline pill in the surrounding text colour, so it works on light and dark pages. */
-.shootcal-instagram-feed__more { margin: 0; text-align: center; }
-.shootcal-instagram-feed__more:has(button:not([hidden])) { margin-top: 18px; }
 
 .shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button {
 	border: 1px solid var(--scif-outline);
@@ -188,8 +206,10 @@
 .shootcal-instagram-feed-shell .shootcal-instagram-feed__more-button[hidden] { display: none; }
 
 /* Follow: Instagram-gradient pill with the Instagram glyph; readable on light and dark pages. */
-.shootcal-instagram-feed__follow {
-	margin: 12px 0 0;
+.shootcal-instagram-feed__follow,
+.shootcal-instagram-feed__actions > .shootcal-instagram-feed__follow {
+	/* Beats theme paragraph margins, which would push Follow off the row's centre line. */
+	margin: 0;
 	text-align: center;
 }
 

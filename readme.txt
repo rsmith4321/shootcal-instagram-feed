@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.6.6
+Stable tag: 0.6.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -137,6 +137,11 @@ For help with connection or feed display, contact support@shootcal.com. Include 
 Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. Posts appear after their local thumbnails are ready. Missing thumbnails wait for the next background refresh instead of loading an image from Instagram in the visitor's browser. Only still JPEG, PNG and WebP thumbnails within a 40-million-pixel decoded budget are processed. Animated PNG/WebP and all GIF files are skipped before image decoding. Each job handles at most four images, decodes each accepted image once, and retains at most 32 MiB of new derivatives. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
+
+= 0.6.7 =
+* View more and Follow on Instagram now sit side by side and wrap on narrow screens.
+* Landscape photos stay centred in their square tiles, even when a theme resizes images.
+* Themes can set the tile background, border and corner radius.
 
 = 0.6.6 =
 * Initial posts and View more now show only locally cached images, so visitors do not request images from Instagram.

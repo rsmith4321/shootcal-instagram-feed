@@ -96,6 +96,42 @@ try {
   // Follow=false must survive PHP rendering and enhancement.
   await mount(fixtures['no-follow'], 641, true);
   check(await page.locator('.shootcal-instagram-feed__follow-link').count(), 0, 'follow opt-out retained');
+  // A theme's img { height: auto } must not leave a landscape photo at the top
+  // of its tile, and View more sits beside Follow in one centred row.
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.setContent(`<!doctype html><html><head><style>body{margin:8px}${css} .theme img{max-width:100%;height:auto} .theme p{margin:0 0 24px}</style></head><body><div class="theme">${fixtures.actions}</div></body></html>`);
+    await page.addScriptTag({ content: script });
+    await page.evaluate(() => new Promise(resolve => {
+      const img = document.querySelector('.shootcal-instagram-feed__image');
+      img.removeAttribute('srcset');
+      img.onload = resolve;
+      img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="640" height="427"/>');
+    }));
+    const layout = await page.evaluate(() => {
+      const img = document.querySelector('.shootcal-instagram-feed__image').getBoundingClientRect();
+      const tile = document.querySelector('.shootcal-instagram-feed__item');
+      const box = (el) => el.getBoundingClientRect();
+      const more = box(document.querySelector('.shootcal-instagram-feed__more-button'));
+      const follow = box(document.querySelector('.shootcal-instagram-feed__follow-link'));
+      const shell = box(document.querySelector('.shootcal-instagram-feed-shell'));
+      const pairCentre = (more.left + follow.right) / 2;
+      document.querySelector('.shootcal-instagram-feed__more-button').hidden = true;
+      const alone = box(document.querySelector('.shootcal-instagram-feed__follow-link'));
+      return {
+        fill: Math.round(img.height) === tile.clientHeight,
+        sameRow: Math.abs((more.top + more.height / 2) - (follow.top + follow.height / 2)) < 1,
+        gap: Math.round(follow.left - more.right),
+        centred: Math.abs(pairCentre - (shell.left + shell.width / 2)) < 1,
+        aloneCentred: Math.abs((alone.left + alone.width / 2) - (shell.left + shell.width / 2)) < 1,
+      };
+    });
+    check(layout.fill, true, `landscape photo fills the tile height under a theme img rule at ${width}`);
+    check(layout.sameRow, true, `View more and Follow share a row at ${width}`);
+    check(layout.gap, 12, `12px between View more and Follow at ${width}`);
+    check(layout.centred, true, `button row centred at ${width}`);
+    check(layout.aloneCentred, true, `Follow stays centred once View more is done at ${width}`);
+  }
   if (evidencePath) writeFileSync(evidencePath, JSON.stringify({ browser: 'Playwright bundled Chromium', assertions, measurements }, null, 2) + '\n');
   console.log(capturePath ? `WordPress baseline: ${measurements.length} widths captured` : `WordPress responsive browser: ${assertions} assertions passed`);
 } finally { await browser.close(); }

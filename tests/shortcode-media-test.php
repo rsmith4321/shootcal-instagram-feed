@@ -101,6 +101,7 @@ namespace {
             }
         }
         $fixtures['phone'] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true']);
+        $fixtures['actions'] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'mobile_limit' => 4, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'true']);
         $fixtures['no-follow'] = (new \ShootCalInstagramFeed\Shortcode())->render(['limit' => 5, 'columns' => 5, 'dynamic' => 'false', 'more' => 'true', 'follow' => 'false']);
         echo json_encode($fixtures, JSON_THROW_ON_ERROR);
         exit(0);
