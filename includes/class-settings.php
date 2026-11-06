@@ -186,11 +186,13 @@ class Settings {
 		delete_option( STATUS_KEY );
 		delete_option( LOCK_KEY );
 		delete_option( OAUTH_KEY );
+		$images_removed = Image_Cache::purge();
+		Image_Cache::schedule_sweep();
 
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'shootcal_instagram_result'       => 'disconnected',
+					'shootcal_instagram_result'       => $images_removed ? 'disconnected' : 'disconnected_images_pending',
 					'shootcal_instagram_result_nonce' => wp_create_nonce( self::RESULT_NONCE_ACTION ),
 				),
 				$this->settings_url()
@@ -336,7 +338,9 @@ class Settings {
 		} elseif ( 'error' === $result ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'The Instagram refresh failed. The last successful cache was preserved; see Connection status below.', 'shootcal-social-feed' ) . '</p></div>';
 		} elseif ( 'disconnected' === $result ) {
-			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instagram was disconnected and its cached feed was removed.', 'shootcal-social-feed' ) . '</p></div>';
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instagram was disconnected and its cached feed and saved images were removed.', 'shootcal-social-feed' ) . '</p></div>';
+		} elseif ( 'disconnected_images_pending' === $result ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Instagram was disconnected and its cached feed was removed, but some saved images could not be deleted yet. The plugin will keep trying. Check that WordPress can write to the shootcal-social-feed folder in your uploads folder.', 'shootcal-social-feed' ) . '</p></div>';
 		} elseif ( 'oauth_connected' === $result ) {
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Instagram connected successfully. The first cached feed is ready.', 'shootcal-social-feed' ) . '</p></div>';
 		} elseif ( 'oauth_connected_refresh_error' === $result ) {

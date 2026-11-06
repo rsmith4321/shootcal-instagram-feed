@@ -7,10 +7,10 @@ $readme = file_get_contents($root . '/readme.txt');
 preg_match('/^ \* Version:\s+(\S+)/m', $plugin, $header);
 preg_match("/const VERSION\s*=\s*'([^']+)'/", $plugin, $constant);
 preg_match('/^Stable tag:\s+(\S+)/m', $readme, $stable);
-if (($header[1] ?? '') !== '0.6.7' || ($constant[1] ?? '') !== $header[1] || ($stable[1] ?? '') !== $header[1]) {
-    throw new RuntimeException('Plugin header, runtime constant and stable tag must all identify 0.6.7.');
+if (($header[1] ?? '') !== '0.6.8' || ($constant[1] ?? '') !== $header[1] || ($stable[1] ?? '') !== $header[1]) {
+    throw new RuntimeException('Plugin header, runtime constant and stable tag must all identify 0.6.8.');
 }
-preg_match('/== Changelog ==\s+= 0\.6\.7 =\s+(.*?)(?=\n= |\z)/s', $readme, $changelog);
+preg_match('/== Changelog ==\s+= 0\.6\.8 =\s+(.*?)(?=\n= |\z)/s', $readme, $changelog);
 if (empty($changelog[1]) || str_contains($changelog[1], '—')) {
     throw new RuntimeException('The new release needs customer-facing changelog text without em dashes.');
 }
@@ -18,4 +18,4 @@ $exclusions = file($root . '/.distignore', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMP
 foreach (['tests', 'AGENTS.md', 'shared/instagram-feed-core/verify.php'] as $excluded) {
     if (!in_array($excluded, $exclusions, true)) throw new RuntimeException('Release must exclude ' . $excluded);
 }
-echo "package-version: header, constant, stable tag, changelog and test exclusions passed (0.6.7)\n";
+echo "package-version: header, constant, stable tag, changelog and test exclusions passed (0.6.8)\n";

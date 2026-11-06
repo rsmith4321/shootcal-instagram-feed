@@ -80,15 +80,28 @@ class Image_Cache {
 	/** A bounded cron batch. Unavailable images retry on the next feed refresh. */
 	public function run(): void {
 		$lock = (int) get_option( self::LOCK, 0 );
-		if ( $lock && time() - $lock < 5 * MINUTE_IN_SECONDS ) { return; }
+		if ( $lock && time() - $lock < 5 * MINUTE_IN_SECONDS ) {
+			// A disconnect during a batch still gets its sweep once that batch ends.
+			if ( '' === (string) ( Config::get()['instagram_account_id'] ?? '' ) && ! wp_next_scheduled( self::HOOK ) ) {
+				wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::HOOK );
+			}
+			return;
+		}
 		if ( $lock ) { delete_option( self::LOCK ); }
 		if ( ! add_option( self::LOCK, time(), '', false ) ) { return; }
 		try {
 			$options = Config::get();
 			$account = (string) ( $options['instagram_account_id'] ?? '' );
+			if ( '' === $account ) {
+				// Disconnected: no copy outlives the connection. Keep trying if one is stuck.
+				if ( ! self::purge() && ! wp_next_scheduled( self::HOOK ) ) {
+					wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK );
+				}
+				return;
+			}
 			$cache = Feed_Store::cache_for_account( $account );
 			if ( empty( $cache['items'] ) ) {
-				// Disconnect and empty feeds retire references without touching source
+				// A connected but empty feed retires references without touching source
 				// media. Finish the existing grace period even with no future refresh.
 				$manifest = self::manifest();
 				$manifest['items'] = array();
@@ -120,6 +133,28 @@ class Image_Cache {
 			if ( $remaining && ! wp_next_scheduled( self::HOOK ) ) { wp_schedule_single_event( time() + 30, self::HOOK ); }
 			$this->prune( $manifest['items'] );
 		} finally { delete_option( self::LOCK ); }
+	}
+
+	/** Disconnect removes every owned copy now and forgets it. True when none remain. */
+	public static function purge(): bool {
+		$uploads = wp_upload_dir( null, false );
+		$complete = empty( $uploads['error'] );
+		if ( $complete ) {
+			foreach ( glob( $uploads['basedir'] . '/shootcal-social-feed/*' ) ?: array() as $path ) {
+				if ( ! is_file( $path ) || ! preg_match( '/^[a-f0-9]{64}-(320|640|1280)\.(?:jpg|jpeg|webp|avif)$/D', basename( $path ) ) ) { continue; }
+				wp_delete_file( $path );
+				if ( is_file( $path ) ) { $complete = false; }
+			}
+		}
+		delete_option( self::OPTION );
+		self::$manifest = array();
+		return $complete;
+	}
+
+	/** Catches a batch that was still writing when the connection ended. */
+	public static function schedule_sweep(): void {
+		wp_clear_scheduled_hook( self::HOOK );
+		wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::HOOK );
 	}
 
 	/** Only public Instagram/Facebook image CDN hosts are fetched, never arbitrary URLs. */

@@ -4,7 +4,7 @@ Tags: instagram, feed, gallery, social media, hashtag
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.6.7
+Stable tag: 0.6.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -112,7 +112,7 @@ No. Front-end rendering reads only the WordPress cache. Visitors' browsers still
 
 = How do I delete the Instagram connection data? =
 
-Open ShootCal Apps > Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, and cached feed from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
+Open ShootCal Apps > Social Feed and choose Disconnect and clear cache. This removes the encrypted token, selected Instagram account ID, OAuth state, refresh status, cached feed, and the resized image copies in your uploads folder from this WordPress installation. Deleting the plugin from WordPress also removes all plugin options and its scheduled refresh job. See https://shootcal.com/data-deletion/ for the complete instructions.
 
 == External services ==
 
@@ -137,6 +137,9 @@ For help with connection or feed display, contact support@shootcal.com. Include 
 Feed thumbnails are downloaded from Instagram/Facebook image CDNs and resized in the background into the site uploads directory. Front-end requests only read completed thumbnails and never trigger image downloads or resizing. Posts appear after their local thumbnails are ready. Missing thumbnails wait for the next background refresh instead of loading an image from Instagram in the visitor's browser. Only still JPEG, PNG and WebP thumbnails within a 40-million-pixel decoded budget are processed. Animated PNG/WebP and all GIF files are skipped before image decoding. Each job handles at most four images, decodes each accepted image once, and retains at most 32 MiB of new derivatives. Disabling the plugin stops thumbnail jobs; original images and WordPress media attachments are not altered. Disposable local thumbnails can be removed from `uploads/shootcal-social-feed/` after uninstalling.
 
 == Changelog ==
+
+= 0.6.8 =
+* Disconnect and clear cache now deletes the saved Instagram images right away instead of about 14 days later.
 
 = 0.6.7 =
 * View more and Follow on Instagram now sit side by side and wrap on narrow screens.

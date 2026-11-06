@@ -98,14 +98,14 @@ try {
  image_check(is_file($retired)&&!isset(get_option(Image_Cache::OPTION)['retired'][basename($retired)]),'reused active owned variant cancels its prior retirement marker');
  $cache['items']=[$item];$cache['fetched_at']++;update_option(CACHE_KEY,$cache,false);(new Image_Cache)->run();
  image_check((get_option(Image_Cache::OPTION)['retired'][basename($retired)]??0)>=time()-2,'retiring a reused variant starts a fresh grace clock');
- // Disconnect follows the real trusted Config boundary and cache deletion hooks.
+ // A connected account whose feed is empty keeps the retirement grace.
  wp_clear_scheduled_hook(Image_Cache::HOOK);
- \ShootCalInstagramFeed\Config::clear_token();delete_option(CACHE_KEY);
- image_check(wp_next_scheduled(Image_Cache::HOOK)!==false,'disconnect schedules background image cleanup without a future feed refresh');
+ delete_option(CACHE_KEY);
+ image_check(wp_next_scheduled(Image_Cache::HOOK)!==false,'an emptied feed schedules background image cleanup without a future feed refresh');
  $events=0;foreach(_get_cron_array() as $hooks){$events+=count($hooks[Image_Cache::HOOK]??[]);}image_check($events===1&&$calls===3,'connection and cache hooks schedule exactly one cleanup with no network');
  wp_clear_scheduled_hook(Image_Cache::HOOK);(new Image_Cache)->run();$m=get_option(Image_Cache::OPTION);
- image_check($m['items']===[]&&is_file($files[0])&&($m['retired'][basename($files[0])]??0)>=time()-2,'disconnect clears references but gives even old active images full retirement grace');
- image_check(is_file($files[1])&&is_file($recent)&&is_file($unrelated),'disconnect retains recent owned images for grace and unrelated original');
+ image_check($m['items']===[]&&is_file($files[0])&&($m['retired'][basename($files[0])]??0)>=time()-2,'an empty feed clears references but gives even old active images full retirement grace');
+ image_check(is_file($files[1])&&is_file($recent)&&is_file($unrelated),'an empty feed retains recent owned images for grace and unrelated original');
  image_check((int)wp_next_scheduled(Image_Cache::HOOK)>=time()+DAY_IN_SECONDS-2,'grace cleanup continues daily without an active feed');
  image_check(get_option('shootcal_instagram_feed_images_lock',false)===false&&$calls===3,'empty feed releases image lock and makes no HTTP calls');
  wp_clear_scheduled_hook(Image_Cache::HOOK);Image_Cache::schedule();image_check(wp_next_scheduled(Image_Cache::HOOK)!==false,'persisted retirement markers can restore a missing cleanup event');
@@ -114,6 +114,29 @@ try {
  wp_clear_scheduled_hook(Image_Cache::HOOK);(new Image_Cache)->run();
  image_check(!is_file($files[0])&&!is_file($files[1])&&!is_file($recent)&&!is_file($retired)&&is_file($unrelated),'later empty-feed cleanup retires only owned images after retirement grace');
  image_check(empty(get_option(Image_Cache::OPTION)['retired'])&&wp_next_scheduled(Image_Cache::HOOK)===false,'empty-feed cleanup drops vanished markers and stops when no owned orphans remain');
+ // Disconnect removes every owned copy at once, through the real Config boundary and hooks.
+ $gone=[$u['basedir'].'/shootcal-social-feed/'.hash('sha256','gone-a').'-640.webp',$u['basedir'].'/shootcal-social-feed/'.hash('sha256','gone-b').'-320.jpg'];
+ $not_owned=$u['basedir'].'/shootcal-social-feed/not-a-derivative.jpg';
+ foreach([...$gone,$not_owned] as $path)file_put_contents($path,'copy');
+ update_option(Image_Cache::OPTION,['items'=>[hash('sha256','gone-a')=>['variants'=>[['file'=>basename($gone[0]),'width'=>640,'height'=>640]]]],'retired'=>[basename($gone[1])=>time()]],false);$manifest->setValue(null,null);
+ wp_clear_scheduled_hook(Image_Cache::HOOK);
+ \ShootCalInstagramFeed\Config::clear_token();delete_option(CACHE_KEY);
+ image_check(Image_Cache::purge()&&!is_file($gone[0])&&!is_file($gone[1]),'disconnect deletes active and retired copies at once');
+ image_check(is_file($unrelated)&&is_file($not_owned)&&get_option(Image_Cache::OPTION,false)===false,'disconnect keeps files the plugin does not own and forgets its manifest');
+ wp_delete_file($not_owned);
+ Image_Cache::schedule_sweep();$events=0;foreach(_get_cron_array() as $hooks){$events+=count($hooks[Image_Cache::HOOK]??[]);}image_check($events===1,'disconnect leaves exactly one follow-up sweep');
+ // A batch still writing when the connection ended is caught by the sweep, after its lock.
+ file_put_contents($gone[0],'late copy');update_option('shootcal_instagram_feed_images_lock',time(),false);
+ wp_clear_scheduled_hook(Image_Cache::HOOK);(new Image_Cache)->run();
+ image_check(is_file($gone[0])&&wp_next_scheduled(Image_Cache::HOOK)!==false,'the sweep waits for a running batch and stays scheduled');
+ delete_option('shootcal_instagram_feed_images_lock');wp_clear_scheduled_hook(Image_Cache::HOOK);(new Image_Cache)->run();
+ image_check(!is_file($gone[0])&&wp_next_scheduled(Image_Cache::HOOK)===false&&get_option('shootcal_instagram_feed_images_lock',false)===false,'the sweep removes a late copy, then stops');
+ // A copy that cannot be deleted is reported and retried, never claimed as removed.
+ $stuck=static fn():string=>'';file_put_contents($gone[1],'stuck copy');add_filter('wp_delete_file',$stuck);
+ image_check(!Image_Cache::purge()&&is_file($gone[1]),'a stuck copy is reported as not removed');
+ (new Image_Cache)->run();image_check((int)wp_next_scheduled(Image_Cache::HOOK)>=time()+DAY_IN_SECONDS-2,'a stuck copy is retried daily');
+ remove_filter('wp_delete_file',$stuck);wp_clear_scheduled_hook(Image_Cache::HOOK);(new Image_Cache)->run();
+ image_check(!is_file($gone[1])&&wp_next_scheduled(Image_Cache::HOOK)===false&&$calls===3,'the retry removes it and sweeps make no HTTP calls');
  (new Shortcode)->render();image_check(wp_next_scheduled(Image_Cache::HOOK)===false&&$calls===3,'read-only disconnected shortcode does not schedule or fetch');
  // Header-only rejection must happen before the image editor loads any frame.
  $chunk=static fn(string $type,string $data):string=>pack('N',strlen($data)).$type.$data.hash('crc32b',$type.$data,true);
