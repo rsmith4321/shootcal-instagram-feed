@@ -7,6 +7,8 @@ defined( 'ABSPATH' ) || exit;
 class Image_Cache {
 	public const HOOK = 'shootcal_instagram_feed_images';
 	public const OPTION = 'shootcal_instagram_feed_images';
+	/** Separate from manifests: an older image batch must never erase a newer disconnect. */
+	public const PURGE_OPTION = 'shootcal_instagram_feed_image_purge';
 	private const LOCK = 'shootcal_instagram_feed_images_lock';
 	private const LIMIT = 8 * 1024 * 1024;
 	// Still-only policy: one decoded frame, at most 40M source pixels. Four
@@ -30,8 +32,9 @@ class Image_Cache {
 		$options = Config::get();
 		$cache = Feed_Store::cache_for_account( (string) ( $options['instagram_account_id'] ?? '' ) );
 		$manifest = self::manifest();
-		if ( empty( $cache['items'] ) && empty( $manifest['items'] ) && empty( $manifest['retired'] ) ) { return; }
-		if ( ! empty( $cache['items'] ) && ( $manifest['checked_feed'] ?? null ) === self::feed_signature( $cache ) ) { return; }
+		$pending = null !== self::purge_intent() || ! empty( $manifest['purge_pending'] );
+		if ( ! $pending && empty( $cache['items'] ) && empty( $manifest['items'] ) && empty( $manifest['retired'] ) ) { return; }
+		if ( ! $pending && ! empty( $cache['items'] ) && ( $manifest['checked_feed'] ?? null ) === self::feed_signature( $cache ) ) { return; }
 		if ( ! wp_next_scheduled( self::HOOK ) ) { wp_schedule_single_event( time() + 30, self::HOOK ); }
 	}
 
@@ -53,6 +56,7 @@ class Image_Cache {
 
 	/** Return completed owned variants only. Missing images wait for the background job. */
 	public static function attributes( string $account, array $item, int $columns ): array {
+		if ( null !== self::purge_intent() ) { return array(); }
 		$key = self::key( $account, $item );
 		$entry = self::manifest()['items'][ $key ] ?? array();
 		$uploads = wp_upload_dir( null, false );
@@ -82,22 +86,25 @@ class Image_Cache {
 		$lock = (int) get_option( self::LOCK, 0 );
 		if ( $lock && time() - $lock < 5 * MINUTE_IN_SECONDS ) {
 			// A disconnect during a batch still gets its sweep once that batch ends.
-			if ( '' === (string) ( Config::get()['instagram_account_id'] ?? '' ) && ! wp_next_scheduled( self::HOOK ) ) {
+			if ( ( '' === (string) ( Config::get()['instagram_account_id'] ?? '' ) || null !== self::purge_intent( true ) ) && ! wp_next_scheduled( self::HOOK ) ) {
 				wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::HOOK );
 			}
 			return;
 		}
 		if ( $lock ) { delete_option( self::LOCK ); }
-		if ( ! add_option( self::LOCK, time(), '', false ) ) { return; }
+		if ( ! add_option( self::LOCK, time(), '', false ) ) {
+			if ( null !== self::purge_intent( true ) ) { self::retry_purge( MINUTE_IN_SECONDS ); }
+			return;
+		}
 		try {
 			$options = Config::get();
 			$account = (string) ( $options['instagram_account_id'] ?? '' );
-			if ( '' === $account ) {
-				// Disconnected: no copy outlives the connection. Keep trying if one is stuck.
-				if ( ! self::purge() && ! wp_next_scheduled( self::HOOK ) ) {
-					wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK );
-				}
-				return;
+			$intent = self::purge_intent( true );
+			// Also admit the previous manifest-only marker after an interrupted plugin upgrade.
+			if ( null === $intent && ( '' === $account || ! empty( self::manifest()['purge_pending'] ) ) ) { $intent = self::request_purge(); }
+			if ( null !== $intent ) {
+				if ( ! self::sweep( $intent ) ) { self::retry_purge( DAY_IN_SECONDS ); return; }
+				if ( '' === $account ) { return; }
 			}
 			$cache = Feed_Store::cache_for_account( $account );
 			if ( empty( $cache['items'] ) ) {
@@ -106,6 +113,7 @@ class Image_Cache {
 				$manifest = self::manifest();
 				$manifest['items'] = array();
 				unset( $manifest['checked_feed'] );
+				if ( null !== self::purge_intent( true ) ) { self::retry_purge( MINUTE_IN_SECONDS ); return; }
 				update_option( self::OPTION, $manifest, false ); self::$manifest = $manifest;
 				if ( $this->prune( array() ) && ! wp_next_scheduled( self::HOOK ) ) {
 					wp_schedule_single_event( time() + DAY_IN_SECONDS, self::HOOK );
@@ -118,6 +126,7 @@ class Image_Cache {
 			$remaining = false; $processed = 0; $active = array();
 			$deadline = hrtime( true ) / 1e9 + self::TICK_SECONDS;
 			foreach ( $cache['items'] as $item ) {
+				if ( null !== self::purge_intent( true ) ) { self::retry_purge( MINUTE_IN_SECONDS ); return; }
 				$key = self::key( $account, $item ); $active[ $key ] = true;
 				$entry = $manifest['items'][ $key ] ?? array();
 				if ( self::attributes( $account, $item, 1 ) || ( $entry['attempted_feed'] ?? '' ) === $signature ) { continue; }
@@ -129,26 +138,99 @@ class Image_Cache {
 			// Keep only active account/media entries; source media and attachments are never changed.
 			$manifest['items'] = array_intersect_key( $manifest['items'], $active );
 			if ( ! $remaining ) { $manifest['checked_feed'] = $signature; }
+			if ( null !== self::purge_intent( true ) ) { self::retry_purge( MINUTE_IN_SECONDS ); return; }
 			update_option( self::OPTION, $manifest, false ); self::$manifest = $manifest;
 			if ( $remaining && ! wp_next_scheduled( self::HOOK ) ) { wp_schedule_single_event( time() + 30, self::HOOK ); }
 			$this->prune( $manifest['items'] );
 		} finally { delete_option( self::LOCK ); }
 	}
 
-	/** Disconnect removes every owned copy now and forgets it. True when none remain. */
+	/** Disconnect removes owned copies; an inaccessible directory stays pending for a later sweep. */
 	public static function purge(): bool {
-		$uploads = wp_upload_dir( null, false );
-		$complete = empty( $uploads['error'] );
-		if ( $complete ) {
-			foreach ( glob( $uploads['basedir'] . '/shootcal-social-feed/*' ) ?: array() as $path ) {
-				if ( ! is_file( $path ) || ! preg_match( '/^[a-f0-9]{64}-(320|640|1280)\.(?:jpg|jpeg|webp|avif)$/D', basename( $path ) ) ) { continue; }
-				wp_delete_file( $path );
-				if ( is_file( $path ) ) { $complete = false; }
-			}
-		}
+		$intent = self::request_purge();
+		self::forget_manifest();
+		$lock = (int) get_option( self::LOCK, 0 );
+		if ( $lock && time() - $lock < 5 * MINUTE_IN_SECONDS ) { self::retry_purge( MINUTE_IN_SECONDS ); return false; }
+		if ( $lock ) { delete_option( self::LOCK ); }
+		if ( ! add_option( self::LOCK, time(), '', false ) ) { self::retry_purge( MINUTE_IN_SECONDS ); return false; }
+		try { return self::sweep( $intent ); }
+		finally { delete_option( self::LOCK ); }
+	}
+
+	/** Fresh mutation reads bypass request/object-cache snapshots; rendering may use WordPress's ordinary option cache. */
+	private static function purge_intent( bool $fresh = false ): ?string {
+		if ( $fresh ) {
+			global $wpdb;
+			$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", self::PURGE_OPTION ) );
+			if ( $wpdb->last_error ) { throw new \RuntimeException( 'Image cleanup state is unavailable.' ); }
+		} else { $value = get_option( self::PURGE_OPTION, null ); }
+		return is_string( $value ) && '' !== $value ? $value : null;
+	}
+
+	private static function purge_cache_changed(): void {
+		wp_cache_delete( self::PURGE_OPTION, 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+	}
+
+	/** Atomic upsert: a disconnect arriving just after an acknowledgment must not lose its new intent. */
+	private static function request_purge(): string {
+		global $wpdb;
+		$intent = bin2hex( random_bytes( 16 ) );
+		$saved = $wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} (option_name,option_value,autoload) VALUES (%s,%s,'no') ON DUPLICATE KEY UPDATE option_value=VALUES(option_value),autoload='no'", self::PURGE_OPTION, $intent ) );
+		if ( false === $saved ) { throw new \RuntimeException( 'Image cleanup could not be recorded.' ); }
+		self::purge_cache_changed();
+		return $intent;
+	}
+
+	private static function forget_manifest(): void {
 		delete_option( self::OPTION );
 		self::$manifest = array();
-		return $complete;
+	}
+
+	private static function retry_purge( int $after ): void {
+		if ( ! wp_next_scheduled( self::HOOK ) ) { wp_schedule_single_event( time() + $after, self::HOOK ); }
+	}
+
+	/** Caller owns the image lock. A running builder therefore cannot write late copies after this sweep acknowledges. */
+	private static function sweep( string $intent ): bool {
+		$uploads = wp_upload_dir( null, false );
+		$complete = false;
+		if ( empty( $uploads['error'] ) ) {
+			$directory = $uploads['basedir'] . '/shootcal-social-feed';
+			clearstatcache( true, $directory );
+			if ( ! file_exists( $directory ) && ! is_link( $directory ) ) {
+				// A failed stat also means an ancestor may be inaccessible. Confirm absence
+				// by listing the uploads directory before forgetting durable cleanup work.
+				try {
+					$complete = true;
+					foreach ( new \DirectoryIterator( $uploads['basedir'] ) as $entry ) {
+						if ( 'shootcal-social-feed' === $entry->getFilename() ) { $complete = false; break; }
+					}
+				} catch ( \Throwable $error ) { $complete = false; }
+			} elseif ( is_dir( $directory ) && ! is_link( $directory ) && is_readable( $directory ) ) {
+				try {
+					$complete = true;
+					foreach ( new \DirectoryIterator( $directory ) as $entry ) {
+						if ( ! preg_match( '/^[a-f0-9]{64}-(320|640|1280)\.(?:jpg|jpeg|webp|avif)$/D', $entry->getFilename() ) || 'file' !== $entry->getType() ) { continue; }
+						$path = $entry->getPathname();
+						wp_delete_file( $path );
+						clearstatcache( true, $path );
+						if ( is_file( $path ) ) { $complete = false; }
+					}
+				} catch ( \Throwable $error ) {
+					$complete = false;
+				}
+			}
+		}
+		self::forget_manifest();
+		if ( ! $complete ) { return false; }
+		global $wpdb;
+		// Only this exact generation is acknowledged. A newer disconnect remains pending and gets another sweep.
+		$removed = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name=%s AND option_value=%s", self::PURGE_OPTION, $intent ) );
+		if ( false === $removed ) { throw new \RuntimeException( 'Image cleanup could not be acknowledged.' ); }
+		self::purge_cache_changed();
+		return null === self::purge_intent( true );
 	}
 
 	/** Catches a batch that was still writing when the connection ended. */

@@ -5,7 +5,7 @@ use const ShootCalInstagramFeed\{OPTION_KEY,CACHE_KEY};
 if (!defined('WP_CLI') || !WP_CLI || !in_array(wp_parse_url(home_url(),PHP_URL_HOST),['localhost','shootcal-plugin-dev.local'],true)) throw new RuntimeException('Disposable local WordPress only');
 require __DIR__.'/restore-options.php';
 function image_check(bool $ok,string $label):void { if(!$ok)throw new RuntimeException($label);echo "PASS $label\n"; }
-$keys=[OPTION_KEY,CACHE_KEY,Image_Cache::OPTION,'shootcal_instagram_feed_images_lock','cron'];$before=[];foreach($keys as $key)$before[$key]=get_option($key,false);
+$keys=[OPTION_KEY,CACHE_KEY,Image_Cache::OPTION,Image_Cache::PURGE_OPTION,'shootcal_instagram_feed_images_lock','cron'];$before=[];foreach($keys as $key)$before[$key]=get_option($key,false);
 $fixture=wp_tempnam('image-cache-fixture');$g=imagecreatetruecolor(1600,1000);for($y=0;$y<1000;$y+=5){imagefilledrectangle($g,0,$y,1599,$y+4,imagecolorallocate($g,$y%255,($y*7)%255,($y*11)%255));}imagejpeg($g,$fixture,95);
 // Exercise the real WordPress decoder with a load counter and controlled save failures.
 require_once ABSPATH.'wp-includes/class-wp-image-editor.php';

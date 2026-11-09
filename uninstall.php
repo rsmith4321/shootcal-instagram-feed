@@ -19,6 +19,7 @@ foreach (
 		'shootcal_instagram_feed_cache',
 		'shootcal_instagram_feed_status',
 		'shootcal_instagram_feed_images',
+		'shootcal_instagram_feed_image_purge',
 		'shootcal_instagram_feed_images_lock',
 		'shootcal_instagram_feed_refresh_lock',
 		'shootcal_instagram_feed_oauth',
