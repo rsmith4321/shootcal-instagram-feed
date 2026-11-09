@@ -311,10 +311,14 @@ class Host:
             query=args[:-2]+['config','get',field]+(['--type=variable'] if field=='table_prefix' else [])
             need(self.command(query).decode().strip()==expected,'wordpress_database_identity')
         raw=self.command(args+[sql,'--skip-column-names','--batch','--raw']);need(0<len(raw)<=16*1024*1024,'option_capture_size')
-        rows=raw.splitlines();need(1<len(rows)<=128,'option_capture_count');active=None
+        rows=raw.splitlines()
+        # WP-CLI appends one formatter newline after MySQL's final record LF.
+        # Validate records without that one empty terminator; retain raw bytes.
+        if raw.endswith(b'\n\n') and rows[-1]==b'':rows.pop()
+        need(1<len(rows)<=128,'option_capture_count');active=None
         for row in rows:
             fields=row.split(b'\t');need(len(fields)==4 and fields[0].isdigit(),'option_capture_format')
-            for f in fields[1:]:need(re.fullmatch(b'[A-Fa-f0-9]*',f) is not None,'option_hex_format')
+            for f in fields[1:]:need(re.fullmatch(b'(?:[A-Fa-f0-9]{2})*',f) is not None,'option_hex_format')
             name=bytes.fromhex(fields[1].decode());need(name==b'active_plugins' or name.startswith(b'shootcal_instagram_feed'),'option_scope')
             if name==b'active_plugins':need(active is None,'duplicate_active_plugins');active=bytes.fromhex(fields[2].decode())
         need(active is not None,'active_plugins_missing')

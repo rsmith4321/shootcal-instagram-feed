@@ -335,6 +335,59 @@ class ReleaseTests(unittest.TestCase):
         with mock.patch.object(R,'checked',return_value=b'foreign_database') as call:
             with self.assertRaisesRegex(R.Refusal,'wordpress_database_identity'):R.Host.options(self.h)
             self.assertEqual(call.call_count,1)
+    def formatter_rows(self):
+        identifier='shootcal-social-feed/shootcal-instagram-feed.php'
+        active=('a:1:{i:0;s:'+str(len(identifier))+':"'+identifier+'";}').encode()
+        def row(index,name,value):return str(index).encode()+b'\t'+name.hex().upper().encode()+b'\t'+value.hex().upper().encode()+b'\t6E6F'
+        rows=[row(1,b'active_plugins',active)]
+        for index,name in enumerate(('options','cache','status','feeds','images','images_lock'),2):
+            value=b'z'*196000 if name=='cache' else b'synthetic-\x00-value'
+            rows.append(row(index,('shootcal_instagram_feed_'+name).encode(),value))
+        return rows
+    def read_formatter_capture(self,raw):
+        original=R.checked
+        def command(args,input=None,timeout=30):
+            if args[0]=='php8.5':return original(['php',*args[1:]],input,timeout)
+            if 'config' in args:return b'wp_\n' if 'table_prefix' in args else b'rsp_blog\n'
+            return raw
+        with mock.patch.object(R,'checked',side_effect=command):return R.Host.options(self.h)
+    def test_option_formatter_terminal_blank_preserves_full_raw_hash_and_encryption(self):
+        expected=b'\n'.join(self.formatter_rows())+b'\n\n'
+        self.assertGreater(len(expected),390000)
+        raw,summary=self.read_formatter_capture(expected)
+        self.assertEqual(raw,expected);self.assertEqual(summary['optionRows'],6)
+        self.assertEqual(summary['optionsSha256'],R.sha(expected))
+        state={**self.h.seal(raw),'optionsSha256':summary['optionsSha256']};self.h.verify_seal(state)
+        decrypted=R.checked(['openssl','enc','-d','-aes-256-cbc','-pbkdf2','-iter','200000','-pass','file:'+str(self.h.run/'options.key')],(self.h.run/'options.enc').read_bytes())
+        self.assertEqual(decrypted,expected)
+    def test_option_formatter_rejects_interior_multiple_or_whitespace_blanks_and_warnings(self):
+        rows=self.formatter_rows();normal=b'\n'.join(rows)+b'\n'
+        cases={
+            'interior_blank':b'\n'.join([rows[0],b'',*rows[1:]])+b'\n\n',
+            'two_terminal_blanks':normal+b'\n\n',
+            'three_terminal_blanks':normal+b'\n\n\n',
+            'whitespace_terminal':normal+b' \n',
+            'warning_after_rows':normal+b'Warning: synthetic formatter warning\n\n',
+            'header_before_rows':b'option_id\toption_name\toption_value\tautoload\n'+normal+b'\n',
+        }
+        for label,raw in cases.items():
+            with self.subTest(label=label),self.assertRaises(R.Refusal):self.read_formatter_capture(raw)
+    def test_option_formatter_retains_row_hex_scope_duplicate_and_count_refusals(self):
+        rows=self.formatter_rows();fields=rows[1].split(b'\t')
+        cases={
+            'missing_field':[rows[0],b'\t'.join(fields[:3]),*rows[2:]],
+            'extra_field':[rows[0],rows[1]+b'\textra',*rows[2:]],
+            'nonnumeric_id':[rows[0],b'x\t'+b'\t'.join(fields[1:]),*rows[2:]],
+            'nonhex_value':[rows[0],b'\t'.join([*fields[:2],b'GG',fields[3]]),*rows[2:]],
+            'odd_hex_value':[rows[0],b'\t'.join([*fields[:2],b'F',fields[3]]),*rows[2:]],
+            'foreign_scope':[rows[0],b'\t'.join([fields[0],b'666F726569676E',*fields[2:]]),*rows[2:]],
+            'duplicate_active':[rows[0],rows[0],*rows[1:]],
+            'only_active':[rows[0]],
+            'too_many_real_rows':[rows[0]]+[rows[1]]*128,
+        }
+        for label,records in cases.items():
+            with self.subTest(label=label),self.assertRaises((R.Refusal,ValueError)):
+                self.read_formatter_capture(b'\n'.join(records)+b'\n\n')
 
 class BackupProofTests(unittest.TestCase):
     def test_actual_index_join_and_success_contract(self):
