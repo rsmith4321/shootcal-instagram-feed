@@ -15,7 +15,7 @@ if (empty($changelog[1]) || str_contains($changelog[1], '—')) {
     throw new RuntimeException('The new release needs customer-facing changelog text without em dashes.');
 }
 $exclusions = file($root . '/.distignore', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-foreach (['tests', 'AGENTS.md', 'shared/instagram-feed-core/verify.php'] as $excluded) {
+foreach (['tests', 'tools', 'AGENTS.md', 'shared/instagram-feed-core/verify.php'] as $excluded) {
     if (!in_array($excluded, $exclusions, true)) throw new RuntimeException('Release must exclude ' . $excluded);
 }
 echo "package-version: header, constant, stable tag, changelog and test exclusions passed (0.6.9)\n";

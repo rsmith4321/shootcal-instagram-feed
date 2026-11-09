@@ -2,6 +2,7 @@
 .gitignore
 .DS_Store
 tests
+tools
 *.zip
 
 AGENTS.md
