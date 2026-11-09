@@ -17,6 +17,7 @@ BASE = P('/root/shootcal-social-feed-release-20261109')
 LIVE = P('/srv/blog/site/wp-content/plugins/shootcal-social-feed')
 CACHE = P('/srv/blog/wp-content/uploads/shootcal-social-feed')
 LOCK = P('/run/lock/shootcal-deploy-shared.lock')
+FPM_ROOT = P('/etc/shootcal-ownerwp')
 OLD = '82fad4e0b10dd43b09dd859b46e5a27b266a829d'
 NEW = '97644184d1627f98abf5f95cd8422a74aed3b7eb'
 SLUG = 'shootcal-social-feed'
@@ -89,6 +90,29 @@ def exchange(a,b):
 def checked(args, raw=None, timeout=30):
     r=subprocess.run(args,input=raw,capture_output=True,timeout=timeout)
     need(r.returncode==0,'command_failed');return r.stdout
+
+def verify_fpm_config(root,owner=0):
+    """Admit only the verified FPM root→two-pool include graph, never nginx."""
+    pool=root/'pool.d'
+    for directory in (root,pool):
+        s=directory.lstat()
+        need(directory.resolve()==directory and stat.S_ISDIR(s.st_mode) and s.st_uid==owner and not s.st_mode&0o022,'fpm_directory_metadata')
+    with os.scandir(pool) as entries:
+        names={entry.name for entry in entries if entry.name.endswith('.conf')}
+    need(names=={'rsp.conf','axis.conf'},'fpm_pool_inventory')
+    paths=[root/'php-fpm.conf',pool/'axis.conf',pool/'rsp.conf']
+    for path in paths:
+        raw=regular(path,owner=owner).decode();includes=[]
+        for line in raw.splitlines():
+            text=line.strip()
+            if not text or text.startswith((';','#')):continue
+            if re.match(r'include\b',text,re.I):
+                match=re.fullmatch(r'include\s*=\s*(\S+)',text,re.I)
+                need(match is not None,'fpm_include_graph');includes.append(match.group(1))
+            need(not re.match(r'''php_(?:admin_)?(?:value|flag)\s*\[\s*["']?\s*opcache\.(?:validate_timestamps|revalidate_freq)\s*["']?\s*\]''',text,re.I),'opcache_pool_override')
+        expected=[str(pool/'*.conf')] if path==paths[0] else []
+        need(includes==expected,'fpm_include_graph')
+    return paths
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self,*args,**kwargs):raise Refusal('backup_rpc_redirect')
@@ -272,13 +296,11 @@ class Host:
         need(children.returncode==1,'backup_manager_busy')
         proof=indexed_backup(plans['amd-hourly-databases-config'],now)
         self.admission={'backupStatusSha256':sha(encoded(status)),'managerPid':props['MainPID'],**proof}
-        # CLI loads the same protected owner PHP ini; separately refuse any
-        # FPM override of these two opcache settings in its configuration tree.
+        # CLI loads the protected owner PHP ini. Follow the actual FPM include
+        # closure and refuse unknown includes/pools and value/flag overrides.
         values=json.loads(self.command(['php8.5','-c','/etc/shootcal-ownerwp/php.ini','-r','echo json_encode([ini_get("opcache.validate_timestamps"),ini_get("opcache.revalidate_freq")]);']))
         need(values==['1','2'],'opcache_timestamp_settings')
-        for p in P('/etc/shootcal-ownerwp').rglob('*.conf'):
-            raw=regular(p,owner=0).decode()
-            need(not re.search(r'^\s*php_(?:admin_)?value\[opcache\.(?:validate_timestamps|revalidate_freq)\]',raw,re.M),'opcache_pool_override')
+        verify_fpm_config(FPM_ROOT)
         self.window() # slow admission reads cannot preserve an expired clock decision
     def package(self):
         raw=regular(self.run/'candidate.zip',TREE_LIMIT,owner=self.private_uid,mode=0o600);need(sha(raw)==self.manifest['zipSha256'],'package_hash');return raw

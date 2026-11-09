@@ -373,7 +373,7 @@ class AdmissionTests(unittest.TestCase):
         plans=[{'id':name,'last_status':'success','failures_24h':0,'last_success_at':now-300,'last_snapshot':'a'*8} for name in ('amd-hourly-databases-config','amd-daily-owner-media','amd-daily-shootcal-files')]
         status={'generated_at':now-10,'servers':[{'key':'consolidated','reachable':True,'plans':plans}]}
         return now,status
-    def admission(self,minute=5,hour=22,hold=False,change=None,childcode=1,expire_after_reads=False):
+    def admission(self,minute=5,hour=22,hold=False,change=None,childcode=1,expire_after_reads=False,fpm_root=None):
         now,status=self.fixture(minute,hour)
         if change:change(status)
         clock=[now]
@@ -385,8 +385,55 @@ class AdmissionTests(unittest.TestCase):
                 return b'["1","2"]'
             raise AssertionError('unexpected external command')
         host.command=command;host.window=lambda: R.Host.window(host)
-        with mock.patch.object(R.time,'time',side_effect=lambda:clock[0]),mock.patch.object(R.os.path,'lexists',return_value=hold),mock.patch.object(R,'regular',return_value=json.dumps(status).encode()),mock.patch.object(R,'checked',side_effect=command),mock.patch.object(R.subprocess,'run',return_value=SimpleNamespace(returncode=childcode)),mock.patch.object(R,'indexed_backup',return_value={'operation':'9','indexOperation':'10','snapshotSha256':'b'*64}):
+        actual_read=R.regular;actual_fpm=R.verify_fpm_config
+        def read(path,*args,**kwargs):
+            if path==pathlib.Path('/var/lib/shootcal/backup-status/backrest.json'):return json.dumps(status).encode()
+            return actual_read(path,*args,**kwargs)
+        def fpm_check(root):
+            if fpm_root is not None:return actual_fpm(root,owner=os.getuid())
+        with mock.patch.object(R.time,'time',side_effect=lambda:clock[0]),mock.patch.object(R.os.path,'lexists',return_value=hold),mock.patch.object(R,'regular',side_effect=read),mock.patch.object(R,'FPM_ROOT',fpm_root or R.FPM_ROOT),mock.patch.object(R,'verify_fpm_config',side_effect=fpm_check),mock.patch.object(R,'checked',side_effect=command),mock.patch.object(R.subprocess,'run',return_value=SimpleNamespace(returncode=childcode)),mock.patch.object(R,'indexed_backup',return_value={'operation':'9','indexOperation':'10','snapshotSha256':'b'*64}):
             R.Host.preflight(host)
+    def fpm_fixture(self,directory):
+        root=pathlib.Path(directory).resolve()/'ownerwp';pool=root/'pool.d';pool.mkdir(parents=True)
+        (root/'php-fpm.conf').write_text('[global]\ninclude = '+str(pool/'*.conf')+'\n')
+        (pool/'axis.conf').write_text('[axis]\nuser = axisblog\n')
+        (pool/'rsp.conf').write_text('[rsp]\nuser = rspblog\n')
+        return root
+    def test_host_preflight_ignores_large_unrelated_nginx_map(self):
+        with tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+            root=self.fpm_fixture(directory);nginx=root/'nginx';nginx.mkdir()
+            irrelevant=nginx/'maps-rsp-old-media.conf'
+            with irrelevant.open('wb') as stream:stream.truncate(5844845)
+            self.admission(fpm_root=root)
+            self.assertEqual(irrelevant.stat().st_size,5844845)
+    def test_host_preflight_rejects_value_and_flag_opcache_overrides_in_each_pool(self):
+        for pool in ('axis.conf','rsp.conf'):
+            for directive in ('php_value[opcache.revalidate_freq] = 0','php_admin_value[opcache.revalidate_freq] = 0','php_flag[opcache.validate_timestamps] = off','php_admin_flag[opcache.validate_timestamps] = off',"php_admin_flag['opcache.validate_timestamps'] = off"):
+                with self.subTest(pool=pool,directive=directive),tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+                    root=self.fpm_fixture(directory)
+                    with (root/'pool.d'/pool).open('a') as stream:stream.write(directive+'\n')
+                    with self.assertRaisesRegex(R.Refusal,'opcache_pool_override'):self.admission(fpm_root=root)
+    def test_host_preflight_rejects_unknown_root_or_nested_pool_include(self):
+        for relative,line in [('php-fpm.conf','include = /etc/php/extra.conf'),('pool.d/rsp.conf','include = /etc/php/extra.conf'),('php-fpm.conf','include = "'+str(R.FPM_ROOT/'pool.d/*.conf')+'"'),('pool.d/axis.conf','INCLUDE = relative.conf ; unsupported include')]:
+            with self.subTest(relative=relative,line=line),tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+                root=self.fpm_fixture(directory)
+                with (root/relative).open('a') as stream:stream.write(line+'\n')
+                with self.assertRaisesRegex(R.Refusal,'fpm_include_graph'):self.admission(fpm_root=root)
+    def test_host_preflight_rejects_extra_pool_in_actual_wildcard(self):
+        with tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+            root=self.fpm_fixture(directory);(root/'pool.d/extra.conf').write_text('[extra]\n')
+            with self.assertRaisesRegex(R.Refusal,'fpm_pool_inventory'):self.admission(fpm_root=root)
+    def test_host_preflight_keeps_existing_read_limit_for_actual_fpm_config(self):
+        with tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+            root=self.fpm_fixture(directory)
+            with (root/'pool.d/rsp.conf').open('ab') as stream:stream.truncate(R.FILE_LIMIT+1)
+            with self.assertRaisesRegex(R.Refusal,'regular_file_metadata'):self.admission(fpm_root=root)
+    def test_host_preflight_refuses_symlink_pool_file_without_reading_target(self):
+        with tempfile.TemporaryDirectory(prefix='rsp-fpm-graph-') as directory:
+            root=self.fpm_fixture(directory);target=root/'foreign.conf';target.write_text('private foreign configuration')
+            pool=root/'pool.d/rsp.conf';pool.unlink();pool.symlink_to(target)
+            with self.assertRaisesRegex(R.Refusal,'regular_file_metadata'):self.admission(fpm_root=root)
+            self.assertEqual(target.read_text(),'private foreign configuration')
     def test_real_host_constructor_uses_verified_distinct_rsp_uid_and_gid(self):
         with mock.patch.object(R.pwd,'getpwnam',return_value=SimpleNamespace(pw_uid=995,pw_gid=980)):
             host=R.Host(pathlib.Path('/synthetic-private-run'),MANIFEST)

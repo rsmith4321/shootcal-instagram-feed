@@ -107,8 +107,10 @@ there is no blanket rebase/adoption switch. Options may change normally again
 after completion.
 
 The source swap is one kernel directory exchange followed by parent fsyncs.
-Opcache must retain validate_timestamps=On/revalidate_freq=2 with no conflicting
-pool override; there is no FPM or nginx reload. Page-cache invalidation is only
+Opcache must retain validate_timestamps=On/revalidate_freq=2. The preflight reads
+only the verified PHP-FPM root and its exact rsp/axis pool include graph, refuses
+unknown includes/pools and value/flag overrides, and ignores unrelated nginx
+files. There is no FPM or nginx reload. Page-cache invalidation is only
 the RSP host, and Redis SCAN/UNLINK is restricted to `rsp-plainwp:`. Failed HTTP,
 Redis or partial-batch results remain unfinished in the journal and are retried
 idempotently. There is no shared flush, warm service, WordPress cron, refresh,
